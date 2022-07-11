@@ -1,0 +1,342 @@
+# CreateDistrolessContainer
+# =========================
+
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Create distroless container image
+
+Parameters:
+
+  DownloadCommands:
+    Description: Commands to get the repository to the EC2
+    Type: String
+
+  SubnetId:
+    Description: Subnet for EC2 instance
+    Type: String
+
+  ContainerName:
+    Description: Name of this container image
+    Type: String
+  ContainerTag:
+    Description: Tag of this container image
+    Type: String
+
+  ECRRepository:
+    Type: String
+
+  S3BucketWithTestResults:
+    Type: String
+
+  CypressImage:
+    Type: String
+    Default: "10.3.0"
+  BaseDir:
+    Type: String
+    Default: "/opt/distroless/src"
+
+  EC2InstanceType:
+    Description: Instance type for EC2 
+    Type: String
+    Default: t3.medium
+  EC2KeyName:
+    Description: Key name for EC2 
+    Default: EC2Key
+  AmazonLinux2AMI: 
+    Description: Amazon Linux AMI
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-ebs
+
+
+Mappings:
+  AWSManagedRoles:
+    ECR:
+      EC2InstanceProfileForImageBuilderECRContainerBuilds: "arn:aws:iam::aws:policy/EC2InstanceProfileForImageBuilderECRContainerBuilds"
+
+Resources:
+
+  DistrolessContainerIAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+              - ec2.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Path: /
+      ManagedPolicyArns:
+        - !FindInMap [ "AWSManagedRoles", "ECR", "EC2InstanceProfileForImageBuilderECRContainerBuilds"]
+  DistrolessContainerIAMRolePolicies:
+    Type: "AWS::IAM::Policy"
+    Properties:
+      PolicyName: "DistrolessContainerIAMRolePolicies"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - 
+            Effect: "Allow"
+            Action:
+              - 's3:ListBucket'
+              - 's3:GetObject'
+              - 's3:PutObject'
+            Effect: Allow
+            Principal: '*'
+            Resource: 
+              - !Join
+                - ''
+                - - 'arn:aws:s3:::'
+                  - !Ref S3BucketWithTestResults
+              - !Join
+                - ''
+                - - 'arn:aws:s3:::'
+                  - !Ref S3BucketWithTestResults
+                  - /*
+            Principal: '*'
+          -
+            Effect: "Allow"
+            Action:
+              - "ecr:ListImages"
+            Resource: 
+              - !Sub "arn:aws:ecr:${AWS::Region}:${AWS::AccountId}:repository/${ECRRepository}"
+      Roles:
+        -
+          Ref: IAMRole
+  DistrolessContainerIAMInstanceProfile:
+    Type: "AWS::IAM::InstanceProfile"
+    Properties:
+      Path: "/"
+      Roles:
+        -
+          Ref: IAMRole
+
+  SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: DistrolessContainerSecurityGroup
+      GroupDescription: DistrolessContainerSecuritygroup
+      VpcId: !Ref WordPressVpcWrite
+  EC2DockerSecurityGroupIngressSSH:
+    Condition: AllowSSH
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref SecurityGroup
+      CidrIp: 0.0.0.0/0      
+      Description: SSH
+      FromPort: 22
+      ToPort: 22
+      IpProtocol: TCP
+  EC2DockerSecurityGroupEgressPublicInternetHTTP:
+    Type: AWS::EC2::SecurityGroupEgress
+    Properties:
+      GroupId: !Ref SecurityGroup
+      CidrIp: 0.0.0.0/0
+      Description: Public Internet HTTP
+      FromPort: 80
+      ToPort: 80
+      IpProtocol: TCP
+  EC2DockerSecurityGroupEgressPublicInternetHTTPS:
+    Type: AWS::EC2::SecurityGroupEgress
+    Properties:
+      GroupId: !Ref SecurityGroup
+      CidrIp: 0.0.0.0/0      
+      Description: Public Internet HTTPS
+      FromPort: 443
+      ToPort: 443
+      IpProtocol: TCP
+
+  DistrolessContainerBuildInstance:
+    Type: AWS::EC2::Instance
+    Metadata:
+      'AWS::CloudFormation::Init':
+        config:
+          files:
+            '/opt/distroless/01-update-aws-cli.sh':
+              content: |
+                #!/bin/bash
+                download_and_unzip_aws_cli_v2() {
+                    curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+                    unzip awscliv2.zip
+                }
+
+                install_aws_cli_v2() {
+                    sudo ./aws/install
+                }
+
+                move_from_aws_cli_v1_to_aws_cli_v2() {
+                    rm -f /bin/aws
+                    ln -s /usr/local/bin/aws /bin/aws
+                }
+
+                download_and_unzip_aws_cli_v2
+                install_aws_cli_v2
+                move_from_aws_cli_v1_to_aws_cli_v2
+                
+              mode: 00500        
+
+            '/opt/distroless/02-install-and-start-docker.sh':
+              content: !Sub |
+                #!/bin/bash
+                echo "TRACE Install and start docker"
+
+                amazon-linux-extras install docker -y
+                systemctl enable --now docker
+                systemctl status docker
+                
+              mode: 00500        
+
+            '/opt/distroless/03-install-and-start-nodejs.sh':
+              content: |
+                #!/bin/bash
+
+                install_node_js() {
+                    # See also: https://docs.aws.amazon.com/sdk-for-javascript/v2/developer-guide/setting-up-node-on-ec2-instance.html
+
+                    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
+                    . ~/.nvm/nvm.sh
+                    nvm install --lts
+                }
+
+                run_npm_install() {
+                    BASE_DIR=/opt/distroless/
+
+                    cd "${BASE_DIR}/e2e" || exit 1
+                    npm install
+                }
+
+                install_node_js
+                run_npm_install
+
+              mode: 00500        
+
+            '/opt/distroless/04-get-files.sh':
+              content: |
+                #!/bin/bash
+
+                mkdir -p "${BaseDir}"
+                cd "$BASE_DIR"
+                ${DownloadCommands}
+
+              mode: 00500
+
+            '/opt/distroless/05-create-copy-cmds.sh':
+              content: |
+                #!/bin/bash
+
+                BASE_DIR="${BaseDir}"
+
+                DOCKER_DIR="${BASE_DIR}/dockerfiles"
+                SCRIPT_DIR="${BASE_DIR}/scripts"
+                BUILD_DIR="${BASE_DIR}/builddir"
+
+                BUILD_DOCKER_FILE="build-dockerfile"
+                BUILD_TAG="build"
+
+                START_TEST_SCRIPT="$BASE_DIR/scripts/start-test.sh"
+                STOP_TEST_SCRIPT="$BASE_DIR/scripts/start-test.sh"
+
+                copy_dockerfiles_to_build_dir() {
+                  cp -r "$DOCKER_DIR/*" "$BUILD_DIR" .
+                }
+
+                create_build_docker_file() {
+                  DOCKER_FILE="./$BUILD_DOCKER_FILE"
+
+                  cat "$DOCKER_DIR/dockerfile-head" \
+                      "$DOCKER_DIR/dockerfile-tail" > $DOCKER_FILE
+
+                  echo "COPY ./exec-ldd.sh ."       >> $DOCKER_FILE
+                  echo "COPY ./exec-strace.sh ."    >> $DOCKER_FILE
+
+                  echo 'ENTRYPOINT ["/bin/sh", "-c", "./exec-strace.sh"]' >> $DOCKER_FILE
+                }
+
+                build_build_container() {
+                  docker build -t "${ContainerName}:$BUILD_TAG" .
+                }
+
+                start_test_script() {
+                  $("$START_TEST_SCRIPT")
+                }
+
+                get_copy_lines_from_ldd() {
+                  docker run -i -v $(pwd):/copy-file-dir "${ContainerName}:$BUILD_TAG" ./exec-ldd.sh
+                }
+
+                get_copy_lines_from_strace() {
+                  docker run -d -p 8080:8080 -v ${BUILD_DIR}:/build-dir "${ContainerName}:$BUILD_TAG" 
+                  docker run -i -v "$BUILD_DIR:/build-dir"
+                }
+
+                stop_test_script() {
+                  $("$STOP_TEST_SCRIPT")
+                }
+
+                mkdir -p "${BASE_DIR}"
+
+                mkdir -p "${BUILD_DIR}"
+                cd "${BUILD_DIR}"
+
+                copy_scripts_to_build_dir
+                copy_dockerfiles_to_build_dir
+
+                create_build_docker_file
+                build_build_container
+
+                start_test_script
+                get_copy_lines_from_ldd
+                get_copy_lines_from_strace
+                stop_test_script
+
+              mode: 00500        
+
+          commands:
+            01-update-aws-cli:
+              command: /opt/distroless/01-update-aws-cli.sh
+              ignoreErrors: true
+            02-install-and-start-docker:
+              command: /opt/distroless/02-install-and-start-docker.sh
+              ignoreErrors: true
+            03-install-and-start-nodejs:
+              command: /opt/distroless/03-install-and-start-nodejs.sh
+              ignoreErrors: true
+            04-get-files:
+              command: /opt/distroless/04-get-files.sh
+              ignoreErrors: true
+            05-create-copy-cmds:
+              command: /opt/distroless/05-create-copy-cmds.sh
+              ignoreErrors: true
+    CreationPolicy:
+      ResourceSignal:
+        Timeout: PT1H
+    Properties:
+      BlockDeviceMappings:
+        - DeviceName: "/dev/xvda"
+          Ebs:
+            VolumeType: "gp2"
+            VolumeSize: 15
+            DeleteOnTermination: true
+      ImageId: !Ref AmazonLinux2AMI 
+      InstanceType: !Ref EC2InstanceType
+      KeyName: !Ref EC2KeyName
+      IamInstanceProfile: !Ref DistrolessContainerIAMInstanceProfile
+      SubnetId: !Ref SubnetId
+      Tags:
+        - Key: Name
+          Value: DistrolessContainerBuildInstance
+      SecurityGroupIds:
+        - !Ref SecurityGroup
+      UserData: 
+        "Fn::Base64": 
+          !Sub |
+            #!/bin/bash
+            yum update -y
+
+            /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource EC2Docker --region ${AWS::Region}
+            /opt/aws/bin/cfn-signal -e 0 --stack ${AWS::StackName} --resource EC2Docker --region ${AWS::Region}
+            # /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource EC2Docker --region ${AWS::Region}
+            sleep 30
+            shutdown now
+  

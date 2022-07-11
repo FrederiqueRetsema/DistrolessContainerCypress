@@ -1,0 +1,3 @@
+COPY --from=build /copy_file_dir/passwd_apache /etc/passwd
+COPY --from=build /copy_file_dir/group_apache /etc/group
+USER apache
