@@ -32,7 +32,7 @@ Parameters:
 
   CypressImage:
     Type: String
-    Default: "10.3.0"
+    Default: "cypress/included:10.3.0"
   BaseDir:
     Type: String
     Default: "/opt/distroless/src"
@@ -204,11 +204,37 @@ Resources:
               content: !Sub |
                 #!/bin/bash
 
+                export LOCALHOST=$(ifconfig | grep inet | grep -v inet6 | grep -v 172\.31 | grep -v 127\.0\.0\.1 | awk '{print $2}')
+
+                chmod_file() {
+                  LAST_THREE_CHARS=$(echo $FILE | awk '{print substr($0,length($0)-2,3)}')
+
+                  if test "$LAST_THREE_CHARS" == '.sh'
+                  then
+                    chmod 700 $FILE
+                  else
+                    chmod 600 $FILE                                      
+                  fi
+                }
+
+                change_file() {
+                  FILE=$1
+
+                  sed 's#{LOCALHOST}#$LOCALHOST#g' -i $FILE
+
+                  chmod_file $FILE
+                }
+
                 BASE_DIR="${BaseDir}"
 
                 mkdir -p "$BASE_DIR"
                 cd "$BASE_DIR"
                 ${DownloadCommands}
+
+                export -f change_file
+                export -f chmod_file
+                find . -type f -name "*" -exec bash -c 'change_file "$@"' bash {} \;
+                find . -type d -name "*" -exec chmod 755 {} \;
 
               mode: 00500
 
@@ -224,7 +250,7 @@ Resources:
                     nvm install --lts
                 }
 
-                run_npm_install()
+                run_npm_install() {
                     REPO_DIR="${RepoDir}"
 
                     cd "$REPO_DIR/e2e" || exit 1
@@ -263,10 +289,11 @@ Resources:
                   cat "$DOCKER_DIR/dockerfile-head" \
                       "$DOCKER_DIR/dockerfile-tail" > $DOCKER_FILE
 
-                  echo "COPY ./exec-ldd.sh ."       >> $DOCKER_FILE
-                  echo "COPY ./exec-strace.sh ."    >> $DOCKER_FILE
+                  echo "RUN  apk add strace lddtree"    >> $DOCKER_FILE
+                  echo "COPY ./exec-ldd.sh /"       >> $DOCKER_FILE
+                  echo "COPY ./exec-strace.sh /"    >> $DOCKER_FILE
 
-                  echo 'ENTRYPOINT ["/bin/sh", "-c", "./exec-strace.sh"]' >> $DOCKER_FILE
+                  echo 'ENTRYPOINT ["/bin/sh", "-c", "sh /exec-strace.sh"]' >> $DOCKER_FILE
                 }
 
                 build_build_container() {
@@ -274,7 +301,7 @@ Resources:
                 }
 
                 start_test_script() {
-                  $("$START_TEST_SCRIPT")
+                  $START_TEST_SCRIPT
                 }
 
                 get_copy_lines_from_ldd() {
@@ -287,7 +314,7 @@ Resources:
                 }
 
                 stop_test_script() {
-                  $("$STOP_TEST_SCRIPT")
+                  $STOP_TEST_SCRIPT
                 }
 
                 mkdir -p "$REPO_DIR"
@@ -297,6 +324,7 @@ Resources:
 
                 copy_dockerfiles_to_build_dir
 
+                cd "$DOCKER_DIR"
                 create_build_docker_file
                 build_build_container
 
