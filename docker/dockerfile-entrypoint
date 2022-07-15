@@ -1,1 +1,4 @@
+COPY --from=build /tmp/passwd_apache /etc/passwd
+COPY --from=build /tmp/group_apache /etc/group
+USER apache
 ENTRYPOINT ["sh", "-c", "/usr/sbin/httpd -D FOREGROUND"]

@@ -1,4 +1,4 @@
-FROM alpine:latest
+FROM alpine:latest AS build
 RUN  apk upgrade --no-cache &&\
      apk add apache2 --no-cache && \
      chown apache:apache /var/log/apache2 && \
@@ -6,5 +6,5 @@ RUN  apk upgrade --no-cache &&\
      sed -i 's/Listen 80/Listen 8080/' /etc/apache2/httpd.conf && \
      sed -i 's/#ServerName www.example.com:80/ServerName www.example.com:8080/' /etc/apache2/httpd.conf &&\
      echo "Hello Distroless" > /var/www/localhost/htdocs/index.html && \
-     grep apache /etc/passwd > /copy_file_dir/passwd_apache && \
-     grep apache /etc/group  > /copy_file_dir/group_apache
+     grep apache /etc/passwd > /tmp/passwd_apache && \
+     grep apache /etc/group  > /tmp/group_apache

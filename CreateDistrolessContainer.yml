@@ -10,6 +10,9 @@ Parameters:
     Description: Commands to get the repository to the EC2
     Type: String
 
+  VpcId:
+    Description: Vpc for EC2 instance
+    Type: String
   SubnetId:
     Description: Subnet for EC2 instance
     Type: String
@@ -33,6 +36,10 @@ Parameters:
   BaseDir:
     Type: String
     Default: "/opt/distroless/src"
+  RepoDir:
+    Description: Commands to get the repository to the EC2
+    Type: String
+    Default: "/opt/distroless/src/DistrolessContainerCypress"
 
   EC2InstanceType:
     Description: Instance type for EC2 
@@ -40,6 +47,7 @@ Parameters:
     Default: t3.medium
   EC2KeyName:
     Description: Key name for EC2 
+    Type: String
     Default: EC2Key
   AmazonLinux2AMI: 
     Description: Amazon Linux AMI
@@ -83,7 +91,6 @@ Resources:
               - 's3:GetObject'
               - 's3:PutObject'
             Effect: Allow
-            Principal: '*'
             Resource: 
               - !Join
                 - ''
@@ -94,7 +101,6 @@ Resources:
                 - - 'arn:aws:s3:::'
                   - !Ref S3BucketWithTestResults
                   - /*
-            Principal: '*'
           -
             Effect: "Allow"
             Action:
@@ -103,23 +109,22 @@ Resources:
               - !Sub "arn:aws:ecr:${AWS::Region}:${AWS::AccountId}:repository/${ECRRepository}"
       Roles:
         -
-          Ref: IAMRole
+          Ref: DistrolessContainerIAMRole
   DistrolessContainerIAMInstanceProfile:
     Type: "AWS::IAM::InstanceProfile"
     Properties:
       Path: "/"
       Roles:
         -
-          Ref: IAMRole
+          Ref: DistrolessContainerIAMRole
 
   SecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupName: DistrolessContainerSecurityGroup
       GroupDescription: DistrolessContainerSecuritygroup
-      VpcId: !Ref WordPressVpcWrite
-  EC2DockerSecurityGroupIngressSSH:
-    Condition: AllowSSH
+      VpcId: !Ref VpcId
+  SecurityGroupIngressSSH:
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
       GroupId: !Ref SecurityGroup
@@ -128,7 +133,7 @@ Resources:
       FromPort: 22
       ToPort: 22
       IpProtocol: TCP
-  EC2DockerSecurityGroupEgressPublicInternetHTTP:
+  SecurityGroupEgressPublicInternetHTTP:
     Type: AWS::EC2::SecurityGroupEgress
     Properties:
       GroupId: !Ref SecurityGroup
@@ -137,7 +142,7 @@ Resources:
       FromPort: 80
       ToPort: 80
       IpProtocol: TCP
-  EC2DockerSecurityGroupEgressPublicInternetHTTPS:
+  SecurityGroupEgressPublicInternetHTTPS:
     Type: AWS::EC2::SecurityGroupEgress
     Properties:
       GroupId: !Ref SecurityGroup
@@ -153,7 +158,15 @@ Resources:
       'AWS::CloudFormation::Init':
         config:
           files:
-            '/opt/distroless/01-update-aws-cli.sh':
+            '/opt/distroless/01-install.sh':
+              content: |
+                #!/bin/bash
+
+                yum install git -y
+                
+              mode: 00500        
+
+            '/opt/distroless/02-update-aws-cli.sh':
               content: |
                 #!/bin/bash
                 download_and_unzip_aws_cli_v2() {
@@ -176,7 +189,7 @@ Resources:
                 
               mode: 00500        
 
-            '/opt/distroless/02-install-and-start-docker.sh':
+            '/opt/distroless/03-install-and-start-docker.sh':
               content: !Sub |
                 #!/bin/bash
                 echo "TRACE Install and start docker"
@@ -187,8 +200,20 @@ Resources:
                 
               mode: 00500        
 
-            '/opt/distroless/03-install-and-start-nodejs.sh':
-              content: |
+            '/opt/distroless/04-get-files.sh':
+              content: !Sub |
+                #!/bin/bash
+
+                BASE_DIR="${BaseDir}"
+
+                mkdir -p "$BASE_DIR"
+                cd "$BASE_DIR"
+                ${DownloadCommands}
+
+              mode: 00500
+
+            '/opt/distroless/05-install-and-start-nodejs.sh':
+              content: !Sub |
                 #!/bin/bash
 
                 install_node_js() {
@@ -199,10 +224,10 @@ Resources:
                     nvm install --lts
                 }
 
-                run_npm_install() {
-                    BASE_DIR=/opt/distroless/
+                run_npm_install()
+                    REPO_DIR="${RepoDir}"
 
-                    cd "${BASE_DIR}/e2e" || exit 1
+                    cd "$REPO_DIR/e2e" || exit 1
                     npm install
                 }
 
@@ -211,34 +236,25 @@ Resources:
 
               mode: 00500        
 
-            '/opt/distroless/04-get-files.sh':
-              content: |
+            '/opt/distroless/06-create-copy-cmds.sh':
+              content: !Sub |
                 #!/bin/bash
 
-                mkdir -p "${BaseDir}"
-                cd "$BASE_DIR"
-                ${DownloadCommands}
+                REPO_DIR="${RepoDir}"
 
-              mode: 00500
-
-            '/opt/distroless/05-create-copy-cmds.sh':
-              content: |
-                #!/bin/bash
-
-                BASE_DIR="${BaseDir}"
-
-                DOCKER_DIR="${BASE_DIR}/dockerfiles"
-                SCRIPT_DIR="${BASE_DIR}/scripts"
-                BUILD_DIR="${BASE_DIR}/builddir"
+                DOCKER_DIR="$REPO_DIR/docker"
+                SCRIPT_DIR="$REPO_DIR/scripts"
+                BUILD_DIR="$REPO_DIR/builddir"
+                CYPRESS_DIR="$REPO_DIR/e2e"
 
                 BUILD_DOCKER_FILE="build-dockerfile"
                 BUILD_TAG="build"
 
-                START_TEST_SCRIPT="$BASE_DIR/scripts/start-test.sh"
-                STOP_TEST_SCRIPT="$BASE_DIR/scripts/start-test.sh"
+                START_TEST_SCRIPT="$REPO_DIR/scripts/start-test.sh"
+                STOP_TEST_SCRIPT="$REPO_DIR/scripts/start-test.sh"
 
                 copy_dockerfiles_to_build_dir() {
-                  cp -r "$DOCKER_DIR/*" "$BUILD_DIR" .
+                  cp -r "$DOCKER_DIR"/* "$BUILD_DIR"
                 }
 
                 create_build_docker_file() {
@@ -254,7 +270,7 @@ Resources:
                 }
 
                 build_build_container() {
-                  docker build -t "${ContainerName}:$BUILD_TAG" .
+                  docker build -t "${ContainerName}:$BUILD_TAG" -f "./$DOCKER_FILE" .
                 }
 
                 start_test_script() {
@@ -262,24 +278,23 @@ Resources:
                 }
 
                 get_copy_lines_from_ldd() {
-                  docker run -i -v $(pwd):/copy-file-dir "${ContainerName}:$BUILD_TAG" ./exec-ldd.sh
+                  docker run -i -v $(pwd):/build_dir "${ContainerName}:$BUILD_TAG" ./exec-ldd.sh
                 }
 
                 get_copy_lines_from_strace() {
-                  docker run -d -p 8080:8080 -v ${BUILD_DIR}:/build-dir "${ContainerName}:$BUILD_TAG" 
-                  docker run -i -v "$BUILD_DIR:/build-dir"
+                  docker run -d -p 8080:8080 -v "$BUILD_DIR":/build-dir "${ContainerName}:$BUILD_TAG" 
+                  docker run -i -v "$CYPRESS_DIR":/e2e -w /e2e ${CypressImage}
                 }
 
                 stop_test_script() {
                   $("$STOP_TEST_SCRIPT")
                 }
 
-                mkdir -p "${BASE_DIR}"
+                mkdir -p "$REPO_DIR"
 
-                mkdir -p "${BUILD_DIR}"
-                cd "${BUILD_DIR}"
+                mkdir -p "$BUILD_DIR"
+                cd "$BUILD_DIR"
 
-                copy_scripts_to_build_dir
                 copy_dockerfiles_to_build_dir
 
                 create_build_docker_file
@@ -293,20 +308,23 @@ Resources:
               mode: 00500        
 
           commands:
-            01-update-aws-cli:
-              command: /opt/distroless/01-update-aws-cli.sh
+            01-install:
+              command: /opt/distroless/01-install.sh
               ignoreErrors: true
-            02-install-and-start-docker:
-              command: /opt/distroless/02-install-and-start-docker.sh
+            02-update-aws-cli:
+              command: /opt/distroless/02-update-aws-cli.sh
               ignoreErrors: true
-            03-install-and-start-nodejs:
-              command: /opt/distroless/03-install-and-start-nodejs.sh
+            03-install-and-start-docker:
+              command: /opt/distroless/03-install-and-start-docker.sh
               ignoreErrors: true
             04-get-files:
               command: /opt/distroless/04-get-files.sh
               ignoreErrors: true
-            05-create-copy-cmds:
-              command: /opt/distroless/05-create-copy-cmds.sh
+            05-install-and-start-nodejs:
+              command: /opt/distroless/05-install-and-start-nodejs.sh
+              ignoreErrors: true
+            06-create-copy-cmds:
+              command: /opt/distroless/06-create-copy-cmds.sh
               ignoreErrors: true
     CreationPolicy:
       ResourceSignal:
@@ -334,9 +352,7 @@ Resources:
             #!/bin/bash
             yum update -y
 
-            /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource EC2Docker --region ${AWS::Region}
-            /opt/aws/bin/cfn-signal -e 0 --stack ${AWS::StackName} --resource EC2Docker --region ${AWS::Region}
-            # /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource EC2Docker --region ${AWS::Region}
-            sleep 30
-            shutdown now
+            /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource DistrolessContainerBuildInstance --region ${AWS::Region}
+            /opt/aws/bin/cfn-signal -e 0 --stack ${AWS::StackName} --resource DistrolessContainerBuildInstance --region ${AWS::Region}
+            # /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource DistrolessContainerBuildInstance --region ${AWS::Region}
   
