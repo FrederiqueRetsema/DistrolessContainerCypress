@@ -245,7 +245,8 @@ Resources:
                 install_node_js() {
                     # See also: https://docs.aws.amazon.com/sdk-for-javascript/v2/developer-guide/setting-up-node-on-ec2-instance.html
 
-                    touch ~/.bashrc
+                    export HOME=/root
+                    touch /root/.bashrc
                     curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
                     . ~/.nvm/nvm.sh
                     nvm install --lts
@@ -275,6 +276,8 @@ Resources:
                 CYPRESS_DIR="$REPO_DIR/e2e"
 
                 BUILD_DOCKER_FILE="build-dockerfile"
+                BUILD_DOCKER_FILE_LDD="build-dockerfile-ldd"
+                BUILD_DOCKER_FILE_STRACE="build-dockerfile-strace"
                 BUILD_TAG="build"
 
                 START_TEST_SCRIPT="$REPO_DIR/scripts/start-test.sh"
@@ -284,13 +287,26 @@ Resources:
                   cp -r "$DOCKER_DIR"/* "$BUILD_DIR"
                 }
 
-                create_build_docker_file() {
-                  DOCKER_FILE="./$BUILD_DOCKER_FILE"
+                create_build_docker_file_ldd() {
+                  DOCKER_FILE="./$BUILD_DOCKER_FILE_LDD"
 
                   cat "$DOCKER_DIR/dockerfile-head" \
                       "$DOCKER_DIR/dockerfile-tail" > $DOCKER_FILE
 
-                  echo "RUN  apk add strace lddtree"    >> $DOCKER_FILE
+                  echo "RUN  apk add lddtree"    >> $DOCKER_FILE
+                  echo "COPY ./exec-ldd.sh /"       >> $DOCKER_FILE
+                  echo "COPY ./exec-strace.sh /"    >> $DOCKER_FILE
+
+                  echo 'ENTRYPOINT ["/bin/sh", "-c", "sh /exec-ldd.sh"]' >> $DOCKER_FILE
+                }
+
+                create_build_docker_file_strace() {
+                  DOCKER_FILE="./$BUILD_DOCKER_FILE_STRACE"
+
+                  cat "$DOCKER_DIR/dockerfile-head" \
+                      "$DOCKER_DIR/dockerfile-tail" > $DOCKER_FILE
+
+                  echo "RUN  apk add strace"    >> $DOCKER_FILE
                   echo "COPY ./exec-ldd.sh /"       >> $DOCKER_FILE
                   echo "COPY ./exec-strace.sh /"    >> $DOCKER_FILE
 
@@ -298,7 +314,10 @@ Resources:
                 }
 
                 build_build_container() {
-                  docker build -t "${ContainerName}:$BUILD_TAG" -f "./$DOCKER_FILE" .
+                  DOCKER_FILE=$1
+                  TAG=$2
+
+                  docker build -t "${ContainerName}:$TAG" -f "./$DOCKER_FILE" .
                 }
 
                 start_test_script() {
@@ -306,11 +325,11 @@ Resources:
                 }
 
                 get_copy_lines_from_ldd() {
-                  docker run -i -v $(pwd):/build_dir "${ContainerName}:$BUILD_TAG" ./exec-ldd.sh
+                  docker run -i -v "$BUILD_DIR":/build_dir "${ContainerName}:ldd"
                 }
 
                 get_copy_lines_from_strace() {
-                  docker run -d -p 8080:8080 -v "$BUILD_DIR":/build-dir "${ContainerName}:$BUILD_TAG" 
+                  docker run -d -p 8080:8080 -v "$BUILD_DIR":/build_dir "${ContainerName}:strace" 
                   docker run -i -v "$CYPRESS_DIR":/e2e -w /e2e ${CypressImage}
                 }
 
@@ -326,8 +345,10 @@ Resources:
                 copy_dockerfiles_to_build_dir
 
                 cd "$DOCKER_DIR"
-                create_build_docker_file
-                build_build_container
+                create_build_docker_file_ldd
+                build_build_container "$BUILD_DOCKER_FILE_LDD" "ldd"
+                create_build_docker_file_strace
+                build_build_container "$BUILD_DOCKER_FILE_STRACE" "strace"
 
                 start_test_script
                 get_copy_lines_from_ldd
