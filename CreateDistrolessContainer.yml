@@ -278,7 +278,6 @@ Resources:
                 BUILD_DOCKER_FILE="build-dockerfile"
                 BUILD_DOCKER_FILE_LDD="build-dockerfile-ldd"
                 BUILD_DOCKER_FILE_STRACE="build-dockerfile-strace"
-                BUILD_TAG="build"
 
                 START_TEST_SCRIPT="$REPO_DIR/scripts/start-test.sh"
                 STOP_TEST_SCRIPT="$REPO_DIR/scripts/start-test.sh"
@@ -290,10 +289,9 @@ Resources:
                 create_build_docker_file_ldd() {
                   DOCKER_FILE="./$BUILD_DOCKER_FILE_LDD"
 
-                  cat "$DOCKER_DIR/dockerfile-head" \
-                      "$DOCKER_DIR/dockerfile-tail" > $DOCKER_FILE
+                  cat "$DOCKER_DIR/dockerfile-head" > $DOCKER_FILE
 
-                  echo "RUN  apk add lddtree"    >> $DOCKER_FILE
+                  echo "RUN  apk add lddtree"       >> $DOCKER_FILE
                   echo "COPY ./exec-ldd.sh /"       >> $DOCKER_FILE
                   echo "COPY ./exec-strace.sh /"    >> $DOCKER_FILE
 
@@ -303,10 +301,9 @@ Resources:
                 create_build_docker_file_strace() {
                   DOCKER_FILE="./$BUILD_DOCKER_FILE_STRACE"
 
-                  cat "$DOCKER_DIR/dockerfile-head" \
-                      "$DOCKER_DIR/dockerfile-tail" > $DOCKER_FILE
+                  cat "$DOCKER_DIR/dockerfile-head" > $DOCKER_FILE
 
-                  echo "RUN  apk add strace"    >> $DOCKER_FILE
+                  echo "RUN  apk add strace"        >> $DOCKER_FILE
                   echo "COPY ./exec-ldd.sh /"       >> $DOCKER_FILE
                   echo "COPY ./exec-strace.sh /"    >> $DOCKER_FILE
 
@@ -357,6 +354,38 @@ Resources:
 
               mode: 00500        
 
+            '/opt/distroless/07-create-distroless-container.sh':
+              content: !Sub |
+                #!/bin/bash
+
+                REPO_DIR="${RepoDir}"
+                BUILD_DIR="$REPO_DIR/builddir"
+                DOCKER_FILE_COPY_COMMANDS_FILE="$BUILD_DIR/dockerfile-copy-commands"
+                DOCKER_FILE_DISTROLESS="$BUILD_DIR/dockerfile-distroless"
+
+                sort_unique_copy_files() {
+                        cat "$BUILD_DIR/docker-copy-commands-ldd" "$BUILD_DIR/docker-copy-commands-strace" |
+                          sort |
+                          uniq > "$DOCKER_FILE_COPY_COMMANDS_FILE"
+                }
+
+                create_dockerfile_distroless() {
+                        cat "$BUILD_DIR/dockerfile-head" \
+                            "$DOCKER_FILE_COPY_COMMANDS_FILE" \
+                            "$BUILD_DIR/dockerfile-tail" > "$DOCKER_FILE_DISTROLESS"
+                }
+
+                build_dockerfile_distroless() {
+                        DOCKER_FILE="$DOCKER_FILE_DISTROLESS"
+                        docker build -t httpd:0.1 -f "$DOCKER_FILE" .
+                }
+
+                cd $BUILD_DIR
+                sort_unique_copy_files
+                create_dockerfile_distroless
+                build_dockerfile_distroless
+              mode: 00500        
+
           commands:
             01-install:
               command: /opt/distroless/01-install.sh
@@ -375,6 +404,9 @@ Resources:
               ignoreErrors: true
             06-create-copy-cmds:
               command: /opt/distroless/06-create-copy-cmds.sh
+              ignoreErrors: true
+            07-create-distroless-container:
+              command: /opt/distroless/07-create-distroless-container.sh
               ignoreErrors: true
     CreationPolicy:
       ResourceSignal:

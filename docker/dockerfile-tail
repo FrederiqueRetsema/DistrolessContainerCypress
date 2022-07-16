@@ -1,1 +1,5 @@
-
+COPY --from=build /tmp/passwd_apache /etc/passwd
+COPY --from=build /tmp/group_apache /etc/group
+COPY --from=build /usr/sbin/httpd /usr/sbin/httpd
+USER apache
+ENTRYPOINT ["/usr/sbin/httpd","-D","FOREGROUND"]
