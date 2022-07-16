@@ -326,7 +326,7 @@ Resources:
                 }
 
                 get_copy_lines_from_strace() {
-                  docker run -d -p 8080:8080 -v "$BUILD_DIR":/build_dir "${ContainerName}:strace" 
+                  docker run --cap-add=SYS_PTRACE -d -p 8080:8080 -v "$BUILD_DIR":/build_dir "${ContainerName}:strace" 
                   docker run -i -v "$CYPRESS_DIR":/e2e -w /e2e ${CypressImage}
                 }
 
