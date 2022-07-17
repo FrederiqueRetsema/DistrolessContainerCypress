@@ -3,4 +3,3 @@ RUN rm -fr /var/www/logs && \
     touch /var/www/logs/access.log && \
     touch /var/www/logs/error.log
 FROM scratch
-    
