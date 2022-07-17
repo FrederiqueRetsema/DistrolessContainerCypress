@@ -25,11 +25,13 @@ Parameters:
     Type: String
 
   ECRRepository:
+    Description: "format 123456789012.dkr.ecr.eu-west-1.amazonaws.com/distroless-container"
     Type: String
 
   S3BucketWithTestResults:
+    Description: "format s3://bucket-with-testresults"
     Type: String
-
+    
   CypressImage:
     Type: String
     Default: "cypress/included:10.3.0"
@@ -354,11 +356,37 @@ Resources:
                   docker run -i -v "$BUILD_DIR":/build_dir "httpd:build"
                 }
 
+                copy_files_to_s3_bucket() {
+                    DATE_TIME=$(date +%F)_$(date +%H%M%S)
+
+                    if test -d $CYPRESS_DIR/cypress/videos
+                    then
+                      echo "Send video(s) to S3"
+                      aws s3 cp "$CYPRESS_DIR/cypress/videos" ${S3BucketWithTestResults}/test-output/$DATE_TIME/videos --recursive
+                    fi
+
+                    if test -d $CYPRESS_DIR/cypress/screenshots
+                    then
+                      echo "Send screenshot(s) to S3"
+                      aws s3 cp "$CYPRESS_DIR/cypress/screenshots ${S3BucketWithTestResults}/test-output/$DATE_TIME/screenshots --recursive
+                    fi
+                }
+
                 get_copy_lines_from_strace() {
                   docker run --privileged -d -p 8080:8080 -v "$BUILD_DIR":/build_dir --name strace "${ContainerName}:strace" 
                   docker run -i -v "$CYPRESS_DIR":/e2e -w /e2e ${CypressImage}
+                  EXIT_CODE=$?
+
+                  copy_files_to_s3_bucket
+
                   docker stop strace
                   docker rm -f strace
+
+                  if test $EXIT_CODE -ne 0
+                  then
+                    echo "Error in tests, see S3 bucket ${S3BucketWithTestResults} for screenshot(s) and/or video(s)"
+                    exit 1
+                  fi
                 }
 
                 remove_dev_proc_and_temp_files_from_strace_output() {
@@ -450,7 +478,12 @@ Resources:
 
                 build_dockerfile_distroless() {
                         DOCKERFILE="$DOCKERFILE_DISTROLESS"
-                        docker build -t ${ContainerName}:${ContainerTag} -f "$DOCKERFILE" .
+                        docker build -t ${ContainerName}:${ContainerTag} -t ${ContainerName}:latest -f "$DOCKERFILE" .
+                }
+
+                push_to_ecr() {
+                  docker tag ${ContainerName}:${ContainerTag} ${ECRRepository}:${ContainerTag} 
+                  docker push -a ${ECRRepository}:${ContainerTag}
                 }
 
                 cd $BUILD_DIR
@@ -458,6 +491,8 @@ Resources:
                 create_add_tarfile_line
                 create_dockerfile_distroless
                 build_dockerfile_distroless
+                push_to_ecr
+
               mode: 00500        
 
           commands:
@@ -509,6 +544,5 @@ Resources:
             yum update -y
 
             /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource DistrolessContainerBuildInstance --region ${AWS::Region}
-            /opt/aws/bin/cfn-signal -e 0 --stack ${AWS::StackName} --resource DistrolessContainerBuildInstance --region ${AWS::Region}
-            # /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource DistrolessContainerBuildInstance --region ${AWS::Region}
+            /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource DistrolessContainerBuildInstance --region ${AWS::Region}
   
