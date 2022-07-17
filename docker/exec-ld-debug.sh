@@ -1,6 +1,6 @@
 #!/bin/sh
 
-FULL_PATH_HTTPD=$(find / -name httpd)
+FULL_PATH_HTTPD=$(find / -name httpd -type f -executable)
 
 # Normal output of ldd:
 # ldd /usr/sbin/httpd
@@ -12,4 +12,4 @@ FULL_PATH_HTTPD=$(find / -name httpd)
 #     libexpat.so.1 => /usr/lib/libexpat.so.1 (0x7f301d4b7000)
 #     libuuid.so.1 => /lib/libuuid.so.1 (0x7f301d4ae000)
 
-LD_DEBUG=libs "${FULL_PATH_HTTPD}" -D FOREGROUND 2>&1 | grep calling | awk '{print "COPY --from=build "$4" "$4}' > /build_dir/docker-copy-commands-ld-debug 
+LD_DEBUG=libs "${FULL_PATH_HTTPD}" -D FOREGROUND 2>&1 | grep calling | awk '{print "copy_file "$4" /build_dir/tar"$4}' > /build_dir/docker-copy-commands-ld-debug

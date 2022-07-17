@@ -279,33 +279,36 @@ Resources:
                 BUILD_DOCKERFILE_LDD="build-dockerfile-ldd"
                 BUILD_DOCKERFILE_LD_DEBUG="build-dockerfile-ld_debug"
                 BUILD_DOCKERFILE_STRACE="build-dockerfile-strace"
+                BUILD_DOCKERFILE_GET_FILES="build-dockerfile-get-files"
+
+                COPY_COMMANDS_FILE_NAME="copy-commands"
+                COPY_COMMANDS_FILE="$BUILD_DIR/$COPY_COMMANDS_FILE_NAME"
 
                 START_TEST_SCRIPT="$REPO_DIR/scripts/start-test.sh"
                 STOP_TEST_SCRIPT="$REPO_DIR/scripts/start-test.sh"
+
+                prepare_dirs() {
+                  mkdir -p "$REPO_DIR"
+
+                  mkdir -p "$BUILD_DIR"
+                  cd "$BUILD_DIR"
+                  rm -fr *
+                  mkdir -p ./tar
+                }
 
                 copy_dockerfiles_to_build_dir() {
                   cp -r "$DOCKER_DIR"/* "$BUILD_DIR"
                 }
 
-                create_BUILD_DOCKERFILE_LDD() {
+                create_build_dockerfile_ldd() {
                   DOCKERFILE="./$BUILD_DOCKERFILE_LDD"
 
                   cat "$DOCKER_DIR/dockerfile-head"       > $DOCKERFILE
 
-                  echo "RUN  yum install -y glib-common" >> $DOCKERFILE
-                  echo "COPY ./exec-ldd.sh /"            >> $DOCKERFILE
+                  echo "RUN  yum install -y glibc-common" >> $DOCKERFILE
+                  echo "COPY ./exec-ldd.sh /"             >> $DOCKERFILE
 
-                  echo 'ENTRYPOINT ["/bin/sh", "-c", "sh /exec-ldd.sh"]' >> $DOCKERFILE
-                }
-
-                create_BUILD_DOCKERFILE_LD_DEBUG() {
-                  DOCKERFILE="./$BUILD_DOCKERFILE_LD_DEBUG"
-
-                  cat "$DOCKER_DIR/dockerfile-head" > $DOCKERFILE
-
-                  echo "COPY ./exec-ld-debug.sh /" >> $DOCKERFILE
-
-                  echo 'ENTRYPOINT ["/bin/sh", "-c", "sh /exec-ld-debug.sh"]' >> $DOCKERFILE
+                  echo 'ENTRYPOINT ["/usr/bin/stdbuf", "-o0", "-e0", "/bin/sh", "-c", "sh /exec-ldd.sh"]' >> $DOCKERFILE
                 }
 
                 create_build_dockerfile_strace() {
@@ -316,7 +319,18 @@ Resources:
                   echo "RUN  yum install -y strace"        >> $DOCKERFILE
                   echo "COPY ./exec-strace.sh /"    >> $DOCKERFILE
 
-                  echo 'ENTRYPOINT ["/bin/sh", "-c", "sh /exec-strace.sh"]' >> $DOCKERFILE
+                  echo 'ENTRYPOINT ["/usr/bin/stdbuf", "-o0", "-e0", "/bin/sh", "-c", "sh /exec-strace.sh"]' >> $DOCKERFILE
+                }
+
+                create_dockerfile_get_files() {
+                  DOCKERFILE="./$BUILD_DOCKERFILE_GET_FILES"
+
+                  cat "$DOCKER_DIR/dockerfile-head"       > $DOCKERFILE
+
+                  chmod a+x "./$COPY_COMMANDS_FILE"
+                  echo "COPY ./$COPY_COMMANDS_FILE_NAME /"     >> $DOCKERFILE
+
+                  echo "ENTRYPOINT [\"/bin/sh\", \"-c\", \"sh /$COPY_COMMANDS_FILE_NAME\"]" >> $DOCKERFILE
                 }
 
                 build_build_container() {
@@ -334,21 +348,20 @@ Resources:
                   docker run -i -v "$BUILD_DIR":/build_dir "${ContainerName}:ldd"
                 }
 
-                get_copy_lines_from_ld_debug() {
-                  docker run --privileged -d -p 8080:8080 -v "$BUILD_DIR":/build_dir --name ld_debug "${ContainerName}:ld-debug" 
-                  docker run -i -v "$CYPRESS_DIR":/e2e -w /e2e ${CypressImage}
-                  docker rm -f ld_debug
+                get_files() {
+                  docker run -i -v "$BUILD_DIR":/build_dir "httpd:build"
                 }
 
                 get_copy_lines_from_strace() {
                   docker run --privileged -d -p 8080:8080 -v "$BUILD_DIR":/build_dir --name strace "${ContainerName}:strace" 
                   docker run -i -v "$CYPRESS_DIR":/e2e -w /e2e ${CypressImage}
+                  docker stop strace
                   docker rm -f strace
                 }
 
-                remove_dev_urandom_from_strace_output() {
+                remove_dev_proc_and_temp_files_from_strace_output() {
                   # /dev/urandom is added by docker, trying to copy it ourselves leads to a build error
-                  cat $BUILD_DIR/docker-copy-commands-strace | grep -v "/dev/urandom" > /tmp/docker-copy-commands-strace.$$
+                  cat $BUILD_DIR/docker-copy-commands-strace | grep -v "/dev/urandom" | grep -v "/proc" | grep -v "/tmp" | grep -v "httpd.pid" > /tmp/docker-copy-commands-strace.$$
                   cp /tmp/docker-copy-commands-strace.$$ $BUILD_DIR/docker-copy-commands-strace
                 }
 
@@ -356,26 +369,37 @@ Resources:
                   $STOP_TEST_SCRIPT
                 }
 
-                mkdir -p "$REPO_DIR"
+                sort_unique_copy_files() {
+                        cat "$BUILD_DIR/docker-copy-commands-ldd" "$BUILD_DIR/docker-copy-commands-strace" |
+                          sort |
+                          uniq > "$COPY_COMMANDS_FILE"
+                }
 
-                mkdir -p "$BUILD_DIR"
-                cd "$BUILD_DIR"
+                create_tarfile() {
+                        cd "$BUILD_DIR/tar" || exit 1
+                        tar -cvzf ../allfiles.tar.gz *
+                }                
 
+                prepare_dirs
                 copy_dockerfiles_to_build_dir
 
-                cd "$DOCKER_DIR"
                 create_build_dockerfile_ldd
                 build_build_container "$BUILD_DOCKERFILE_LDD" "ldd"
-                create_build_dockerfile_ld_debug
-                build_build_container "$BUILD_DOCKERFILE_LDD" "ld-debug"
                 create_build_dockerfile_strace
                 build_build_container "$BUILD_DOCKERFILE_STRACE" "strace"
 
                 start_test_script
+
                 get_copy_lines_from_ldd
-                get_copy_lines_from_ld_debug
                 get_copy_lines_from_strace
-                remove_dev_urandom_from_strace_output
+                remove_dev_proc_and_temp_files_from_strace_output
+
+                sort_unique_copy_files
+
+                create_dockerfile_get_files
+                build_build_container "$BUILD_DOCKERFILE_GET_FILES" "build"
+                get_files
+
                 stop_test_script
 
               mode: 00500        
@@ -391,6 +415,7 @@ Resources:
                 DOCKERFILE_COPY_COMMANDS_FILE="$BUILD_DIR/dockerfile-copy-commands"
                 DOCKERFILE_TAIL_FILE="$BUILD_DIR/dockerfile-tail"
                 DOCKERFILE_DISTROLESS="$BUILD_DIR/dockerfile-distroless"
+                DOCKERFILE_ADD_TARFILE_FILE="$BUILD_DIR/dockerfile-add-tarfile"
 
                 sort_unique_copy_files() {
                         cat "$BUILD_DIR/docker-copy-commands-ldd" "$BUILD_DIR/docker-copy-commands-strace" |
@@ -398,10 +423,14 @@ Resources:
                           uniq > "$DOCKERFILE_COPY_COMMANDS_FILE"
                 }
 
+                create_add_tarfile_line() {
+                  echo "ADD --chown=apache:apache allfiles.tar.gz /" > $DOCKERFILE_ADD_TARFILE_FILE
+                }
+
                 create_dockerfile_distroless() {
                   cat "$DOCKERFILE_HEAD_FILE" \
                       "$DOCKERFILE_START_FROM_SCRATCH_FILE" \
-                      "$DOCKERFILE_COPY_COMMANDS_FILE" \
+                      "$DOCKERFILE_ADD_TARFILE_FILE" \
                       "$DOCKERFILE_TAIL_FILE" | \
                   grep -v 'run/'  > "$DOCKERFILE_DISTROLESS"                
                 }
@@ -413,6 +442,7 @@ Resources:
 
                 cd $BUILD_DIR
                 sort_unique_copy_files
+                create_add_tarfile_line
                 create_dockerfile_distroless
                 build_dockerfile_distroless
               mode: 00500        

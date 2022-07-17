@@ -1,6 +1,3 @@
-RUN rm -fr /var/logs/httpd && \
-    touch /var/logs/logs/access.log && \
-    touch /var/logs/error.log
 FROM scratch
 COPY --from=build /tmp/passwd_apache /etc/passwd
 COPY --from=build /tmp/group_apache /etc/group
