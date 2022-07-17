@@ -29,7 +29,7 @@ Parameters:
     Type: String
 
   S3BucketWithTestResults:
-    Description: "format s3://bucket-with-testresults"
+    Description: "format bucket-with-testresults"
     Type: String
   S3BucketKeyPrefix:
     Description: "format first-dir/second-dir"
@@ -271,7 +271,7 @@ Resources:
 
               mode: 00500        
 
-            '/opt/distroless/06-create-copy-cmds.sh':
+            '/opt/distroless/06-create-tar.sh':
               content: !Sub |
                 #!/bin/bash
 
@@ -310,9 +310,9 @@ Resources:
                 create_build_dockerfile_ldd() {
                   DOCKERFILE="./$BUILD_DOCKERFILE_LDD"
 
-                  cat "$DOCKER_DIR/dockerfile-head"       > $DOCKERFILE
+                  cat "$BUILD_DIR/dockerfile-head"     > $DOCKERFILE
 
-                  echo "apk add lddtree" >> $DOCKERFILE
+                  echo "RUN apk add lddtree coreutils"  >> $DOCKERFILE
                   echo "COPY ./exec-ldd.sh /" >> $DOCKERFILE
 
                   echo 'ENTRYPOINT ["/usr/bin/stdbuf", "-o0", "-e0", "/bin/sh", "-c", "sh /exec-ldd.sh"]' >> $DOCKERFILE
@@ -321,10 +321,10 @@ Resources:
                 create_build_dockerfile_strace() {
                   DOCKERFILE="./$BUILD_DOCKERFILE_STRACE"
 
-                  cat "$DOCKER_DIR/dockerfile-head" > $DOCKERFILE
+                  cat "$BUILD_DIR/dockerfile-head"   > $DOCKERFILE
 
-                  echo "apk add strace"             >> $DOCKERFILE
-                  echo "COPY ./exec-strace.sh /"    >> $DOCKERFILE
+                  echo "RUN apk add strace coreutils" >> $DOCKERFILE
+                  echo "COPY ./exec-strace.sh /"      >> $DOCKERFILE
 
                   echo 'ENTRYPOINT ["/usr/bin/stdbuf", "-o0", "-e0", "/bin/sh", "-c", "sh /exec-strace.sh"]' >> $DOCKERFILE
                 }
@@ -332,7 +332,7 @@ Resources:
                 create_dockerfile_get_files() {
                   DOCKERFILE="./$BUILD_DOCKERFILE_GET_FILES"
 
-                  cat "$DOCKER_DIR/dockerfile-head"         > $DOCKERFILE
+                  cat "$BUILD_DIR/dockerfile-head"         > $DOCKERFILE
 
                   chmod a+x "$COPY_COMMANDS_FILE"
                   echo "COPY ./$COPY_COMMANDS_FILE_NAME /" >> $DOCKERFILE
@@ -347,32 +347,28 @@ Resources:
                   docker build -t "${ContainerName}:$TAG" -f "./$DOCKERFILE" .
                 }
 
-                start_test_script() {
-                  $START_TEST_SCRIPT
-                }
-
-                get_copy_lines_from_ldd() {
-                  docker run -i -v "$BUILD_DIR":/build_dir "${ContainerName}:ldd"
-                }
-
-                get_files() {
-                  docker run -i -v "$BUILD_DIR":/build_dir "httpd:build"
-                }
-
                 copy_files_to_s3_bucket() {
                     DATE_TIME=$(date +%F)_$(date +%H%M%S)
 
                     if test -d $CYPRESS_DIR/cypress/videos
                     then
                       echo "Send video(s) to S3"
-                      aws s3 cp "$CYPRESS_DIR/cypress/videos" "${S3BucketWithTestResults}/${S3BucketKeyPrefix}/$DATE_TIME/videos" --recursive
+                      aws s3 cp "$CYPRESS_DIR/cypress/videos" "s3://${S3BucketWithTestResults}/${S3BucketKeyPrefix}/$DATE_TIME/videos" --recursive
                     fi
 
                     if test -d $CYPRESS_DIR/cypress/screenshots
                     then
                       echo "Send screenshot(s) to S3"
-                      aws s3 cp "$CYPRESS_DIR/cypress/screenshots" "${S3BucketWithTestResults}/${S3BucketKeyPrefix}/$DATE_TIME/screenshots" --recursive
+                      aws s3 cp "$CYPRESS_DIR/cypress/screenshots" "s3://${S3BucketWithTestResults}/${S3BucketKeyPrefix}/$DATE_TIME/screenshots" --recursive
                     fi
+                }
+
+                start_test_script() {
+                  $START_TEST_SCRIPT
+                }
+
+                get_copy_lines_from_ldd() {
+                  docker run -i -v "$BUILD_DIR":/build_dir "${ContainerName}:ldd"
                 }
 
                 get_copy_lines_from_strace() {
@@ -398,10 +394,6 @@ Resources:
                   cp /tmp/docker-copy-commands-strace.$$ $BUILD_DIR/docker-copy-commands-strace
                 }
 
-                stop_test_script() {
-                  $STOP_TEST_SCRIPT
-                }
-
                 sort_unique_copy_files() {
                         cat "$BUILD_DIR/docker-copy-commands-ldd" "$BUILD_DIR/docker-copy-commands-strace" |
                           sort |
@@ -414,11 +406,19 @@ Resources:
                   cp "/tmp/$COPY_COMMANDS_FILE_NAME.$$" "$COPY_COMMANDS_FILE"
                 }
 
+                get_files() {
+                  docker run -i -v "$BUILD_DIR":/build_dir "httpd:build"
+                }
+
                 create_tar_file() {
                         cd "$BUILD_DIR/tar" || exit 1
                         chown -R apache:apache *
                         tar -cvzf ../allfiles.tar.gz *
                 }                
+
+                stop_test_script() {
+                  $STOP_TEST_SCRIPT
+                }
 
                 prepare_dirs
 
@@ -456,7 +456,6 @@ Resources:
                 BUILD_DIR="$REPO_DIR/builddir"
                 DOCKERFILE_HEAD_FILE="$BUILD_DIR/dockerfile-head"
                 DOCKERFILE_START_FROM_SCRATCH_FILE="$BUILD_DIR/dockerfile-start-from-scratch"
-                DOCKERFILE_COPY_COMMANDS_FILE="$BUILD_DIR/dockerfile-copy-commands"
                 DOCKERFILE_TAIL_FILE="$BUILD_DIR/dockerfile-tail"
                 DOCKERFILE_DISTROLESS="$BUILD_DIR/dockerfile-distroless"
                 DOCKERFILE_ADD_TARFILE_FILE="$BUILD_DIR/dockerfile-add-tarfile"
@@ -479,7 +478,7 @@ Resources:
                 }
 
                 push_to_ecr() {
-                  aws ecr get-login-password --region {AWS::Region} | docker login --username AWS --password-stdin ${ECRRepository}
+                  aws ecr get-login-password --region ${AWS::Region} | docker login --username AWS --password-stdin ${ECRRepository}
                   docker tag ${ContainerName}:${ContainerTag} ${ECRRepository}:${ContainerTag} 
                   docker push -a ${ECRRepository}
                 }
@@ -508,12 +507,12 @@ Resources:
             05-install-and-start-nodejs:
               command: /opt/distroless/05-install-and-start-nodejs.sh
               ignoreErrors: true
-            06-create-copy-cmds:
-              command: /opt/distroless/06-create-copy-cmds.sh
-              ignoreErrors: true
+            06-create-tar:
+              command: /opt/distroless/06-create-tar.sh
+              ignoreErrors: false
             07-create-distroless-container:
               command: /opt/distroless/07-create-distroless-container.sh
-              ignoreErrors: true
+              ignoreErrors: false
     CreationPolicy:
       ResourceSignal:
         Timeout: PT1H
