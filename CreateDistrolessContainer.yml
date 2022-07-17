@@ -276,7 +276,8 @@ Resources:
                 CYPRESS_DIR="$REPO_DIR/e2e"
 
                 BUILD_DOCKERFILE="build-dockerfile"
-                BUILD_DOCKERFILE_LDD="build-dockerfile-ldd-httpd"
+                BUILD_DOCKERFILE_LDD="build-dockerfile-ldd"
+                BUILD_DOCKERFILE_LD_DEBUG="build-dockerfile-ld_debug"
                 BUILD_DOCKERFILE_STRACE="build-dockerfile-strace"
 
                 START_TEST_SCRIPT="$REPO_DIR/scripts/start-test.sh"
@@ -289,12 +290,22 @@ Resources:
                 create_BUILD_DOCKERFILE_LDD() {
                   DOCKERFILE="./$BUILD_DOCKERFILE_LDD"
 
+                  cat "$DOCKER_DIR/dockerfile-head"       > $DOCKERFILE
+
+                  echo "RUN  yum install -y glib-common" >> $DOCKERFILE
+                  echo "COPY ./exec-ldd.sh /"            >> $DOCKERFILE
+
+                  echo 'ENTRYPOINT ["/bin/sh", "-c", "sh /exec-ldd.sh"]' >> $DOCKERFILE
+                }
+
+                create_BUILD_DOCKERFILE_LD_DEBUG() {
+                  DOCKERFILE="./$BUILD_DOCKERFILE_LD_DEBUG"
+
                   cat "$DOCKER_DIR/dockerfile-head" > $DOCKERFILE
 
-                  echo "RUN  apk add lddtree"       >> $DOCKERFILE
-                  echo "COPY ./exec-ldd-httpd.sh /" >> $DOCKERFILE
+                  echo "COPY ./exec-ld-debug.sh /" >> $DOCKERFILE
 
-                  echo 'ENTRYPOINT ["/bin/sh", "-c", "sh /exec-ldd-httpd.sh"]' >> $DOCKERFILE
+                  echo 'ENTRYPOINT ["/bin/sh", "-c", "sh /exec-ld-debug.sh"]' >> $DOCKERFILE
                 }
 
                 create_build_dockerfile_strace() {
@@ -302,7 +313,7 @@ Resources:
 
                   cat "$DOCKER_DIR/dockerfile-head" > $DOCKERFILE
 
-                  echo "RUN  apk add strace"        >> $DOCKERFILE
+                  echo "RUN  yum install -y strace"        >> $DOCKERFILE
                   echo "COPY ./exec-strace.sh /"    >> $DOCKERFILE
 
                   echo 'ENTRYPOINT ["/bin/sh", "-c", "sh /exec-strace.sh"]' >> $DOCKERFILE
@@ -323,6 +334,12 @@ Resources:
                   docker run -i -v "$BUILD_DIR":/build_dir "${ContainerName}:ldd"
                 }
 
+                get_copy_lines_from_ld_debug() {
+                  docker run --privileged -d -p 8080:8080 -v "$BUILD_DIR":/build_dir --name ld_debug "${ContainerName}:ld-debug" 
+                  docker run -i -v "$CYPRESS_DIR":/e2e -w /e2e ${CypressImage}
+                  docker rm -f ld_debug
+                }
+
                 get_copy_lines_from_strace() {
                   docker run --privileged -d -p 8080:8080 -v "$BUILD_DIR":/build_dir --name strace "${ContainerName}:strace" 
                   docker run -i -v "$CYPRESS_DIR":/e2e -w /e2e ${CypressImage}
@@ -330,6 +347,7 @@ Resources:
                 }
 
                 remove_dev_urandom_from_strace_output() {
+                  # /dev/urandom is added by docker, trying to copy it ourselves leads to a build error
                   cat $BUILD_DIR/docker-copy-commands-strace | grep -v "/dev/urandom" > /tmp/docker-copy-commands-strace.$$
                   cp /tmp/docker-copy-commands-strace.$$ $BUILD_DIR/docker-copy-commands-strace
                 }
@@ -342,18 +360,20 @@ Resources:
 
                 mkdir -p "$BUILD_DIR"
                 cd "$BUILD_DIR"
-                rm -f "$BUILD_DIR/docker-copy-commands-ldd"
 
                 copy_dockerfiles_to_build_dir
 
                 cd "$DOCKER_DIR"
-                create_BUILD_DOCKERFILE_LDD
+                create_build_dockerfile_ldd
                 build_build_container "$BUILD_DOCKERFILE_LDD" "ldd"
+                create_build_dockerfile_ld_debug
+                build_build_container "$BUILD_DOCKERFILE_LDD" "ld-debug"
                 create_build_dockerfile_strace
                 build_build_container "$BUILD_DOCKERFILE_STRACE" "strace"
 
                 start_test_script
                 get_copy_lines_from_ldd
+                get_copy_lines_from_ld_debug
                 get_copy_lines_from_strace
                 remove_dev_urandom_from_strace_output
                 stop_test_script
