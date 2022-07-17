@@ -345,6 +345,11 @@ Resources:
                   docker rm -f strace
                 }
 
+                remove_dev_urandom_from_strace_output() {
+                  cat $BUILD_DIR/docker-copy-commands-strace | grep -v "/dev/urandom" > /tmp/docker-copy-commands-strace.$$
+                  cp /tmp/docker-copy-commands-strace.$$ $BUILD_DIR/docker-copy-commands-strace
+                }
+
                 stop_test_script() {
                   $STOP_TEST_SCRIPT
                 }
@@ -368,6 +373,7 @@ Resources:
                 start_test_script
                 get_copy_lines_from_ldd
                 get_copy_lines_from_strace
+                remove_dev_urandom_from_strace_output
                 stop_test_script
 
               mode: 00500        
