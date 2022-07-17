@@ -23,21 +23,15 @@ copy_file() {
 }
 
 create_logs() {
-  rm -fr /etc/httpd/logs
-  mkdir -p /etc/httpd/logs
-  touch /etc/httpd/logs/access_log
-  touch /etc/httpd/logs/error_log
-  chmod a+rw /etc/httpd/logs/*
+  mkdir -p /build_dir/tar/var/www/logs
+  touch /build_dir/tar/var/www/logs/access.log
+  touch /build_dir/tar/var/www/logs/error.log
+  chmod a+w /build_dir/tar/var/www/logs/*
 }
 
-create_etc_httpd_run() {
-  mkdir -p /run/httpd
-  ln -s /run/httpd /etc/httpd/run
-
-  mkdir -p /build_dir/tar/run/httpd
-  mkdir -p /build_dir/tar/etc/httpd/
-  cp -P /etc/httpd/run /build_dir/tar/etc/httpd/run
+create_run_httpd() {
+  mkdir -p /build_dir/tar/run/apache2
 }
 
 create_logs
-create_etc_httpd_run
+create_run_httpd

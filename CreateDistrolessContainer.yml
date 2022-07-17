@@ -412,7 +412,7 @@ Resources:
 
                 create_tar_file() {
                         cd "$BUILD_DIR/tar" || exit 1
-                        chown -R apache:apache *
+                        chown -R 100:101 *
                         tar -cvzf ../allfiles.tar.gz *
                 }                
 
@@ -461,7 +461,7 @@ Resources:
                 DOCKERFILE_ADD_TARFILE_FILE="$BUILD_DIR/dockerfile-add-tarfile"
 
                 create_add_tarfile_line() {
-                  echo "ADD --chown=apache:apache allfiles.tar.gz /" > $DOCKERFILE_ADD_TARFILE_FILE
+                  echo "ADD allfiles.tar.gz /" > $DOCKERFILE_ADD_TARFILE_FILE
                 }
 
                 create_dockerfile_distroless() {
