@@ -12,6 +12,5 @@ FULL_PATH_HTTPD=$(find / -name httpd -type f -executable)
 #     libexpat.so.1 => /usr/lib/libexpat.so.1 (0x7f301d4b7000)
 #     libuuid.so.1 => /lib/libuuid.so.1 (0x7f301d4ae000)
 
-
 ldd "${FULL_PATH_HTTPD}" | grep -v "=>" | awk '{print "copy_file "$1" /build_dir/tar"$1}' > /build_dir/docker-copy-commands-ldd  || exit 1
 ldd "${FULL_PATH_HTTPD}" | grep "=>"    | awk '{print "copy_file "$3" /build_dir/tar"$3}' >> /build_dir/docker-copy-commands-ldd || exit 1

@@ -31,6 +31,9 @@ Parameters:
   S3BucketWithTestResults:
     Description: "format s3://bucket-with-testresults"
     Type: String
+  S3BucketKeyPrefix:
+    Description: "format first-dir/second-dir"
+    Type: String
     
   CypressImage:
     Type: String
@@ -309,8 +312,8 @@ Resources:
 
                   cat "$DOCKER_DIR/dockerfile-head"       > $DOCKERFILE
 
-                  echo "RUN  yum install -y glibc-common" >> $DOCKERFILE
-                  echo "COPY ./exec-ldd.sh /"             >> $DOCKERFILE
+                  echo "apk add lddtree" >> $DOCKERFILE
+                  echo "COPY ./exec-ldd.sh /" >> $DOCKERFILE
 
                   echo 'ENTRYPOINT ["/usr/bin/stdbuf", "-o0", "-e0", "/bin/sh", "-c", "sh /exec-ldd.sh"]' >> $DOCKERFILE
                 }
@@ -320,7 +323,7 @@ Resources:
 
                   cat "$DOCKER_DIR/dockerfile-head" > $DOCKERFILE
 
-                  echo "RUN  yum install -y strace" >> $DOCKERFILE
+                  echo "apk add strace"             >> $DOCKERFILE
                   echo "COPY ./exec-strace.sh /"    >> $DOCKERFILE
 
                   echo 'ENTRYPOINT ["/usr/bin/stdbuf", "-o0", "-e0", "/bin/sh", "-c", "sh /exec-strace.sh"]' >> $DOCKERFILE
@@ -329,10 +332,10 @@ Resources:
                 create_dockerfile_get_files() {
                   DOCKERFILE="./$BUILD_DOCKERFILE_GET_FILES"
 
-                  cat "$DOCKER_DIR/dockerfile-head"       > $DOCKERFILE
+                  cat "$DOCKER_DIR/dockerfile-head"         > $DOCKERFILE
 
-                  chmod a+x "./$COPY_COMMANDS_FILE"
-                  echo "COPY ./$COPY_COMMANDS_FILE_NAME /"     >> $DOCKERFILE
+                  chmod a+x "$COPY_COMMANDS_FILE"
+                  echo "COPY ./$COPY_COMMANDS_FILE_NAME /" >> $DOCKERFILE
 
                   echo "ENTRYPOINT [\"/bin/sh\", \"-c\", \"sh /$COPY_COMMANDS_FILE_NAME\"]" >> $DOCKERFILE
                 }
@@ -362,13 +365,13 @@ Resources:
                     if test -d $CYPRESS_DIR/cypress/videos
                     then
                       echo "Send video(s) to S3"
-                      aws s3 cp "$CYPRESS_DIR/cypress/videos" ${S3BucketWithTestResults}/test-output/$DATE_TIME/videos --recursive
+                      aws s3 cp "$CYPRESS_DIR/cypress/videos" "${S3BucketWithTestResults}/${S3BucketKeyPrefix}/$DATE_TIME/videos" --recursive
                     fi
 
                     if test -d $CYPRESS_DIR/cypress/screenshots
                     then
                       echo "Send screenshot(s) to S3"
-                      aws s3 cp "$CYPRESS_DIR/cypress/screenshots ${S3BucketWithTestResults}/test-output/$DATE_TIME/screenshots --recursive
+                      aws s3 cp "$CYPRESS_DIR/cypress/screenshots" "${S3BucketWithTestResults}/${S3BucketKeyPrefix}/$DATE_TIME/screenshots" --recursive
                     fi
                 }
 
@@ -458,12 +461,6 @@ Resources:
                 DOCKERFILE_DISTROLESS="$BUILD_DIR/dockerfile-distroless"
                 DOCKERFILE_ADD_TARFILE_FILE="$BUILD_DIR/dockerfile-add-tarfile"
 
-                sort_unique_copy_files() {
-                        cat "$BUILD_DIR/docker-copy-commands-ldd" "$BUILD_DIR/docker-copy-commands-strace" |
-                          sort |
-                          uniq > "$DOCKERFILE_COPY_COMMANDS_FILE"
-                }
-
                 create_add_tarfile_line() {
                   echo "ADD --chown=apache:apache allfiles.tar.gz /" > $DOCKERFILE_ADD_TARFILE_FILE
                 }
@@ -482,12 +479,12 @@ Resources:
                 }
 
                 push_to_ecr() {
+                  aws ecr get-login-password --region {AWS::Region} | docker login --username AWS --password-stdin ${ECRRepository}
                   docker tag ${ContainerName}:${ContainerTag} ${ECRRepository}:${ContainerTag} 
-                  docker push -a ${ECRRepository}:${ContainerTag}
+                  docker push -a ${ECRRepository}
                 }
 
                 cd $BUILD_DIR
-                sort_unique_copy_files
                 create_add_tarfile_line
                 create_dockerfile_distroless
                 build_dockerfile_distroless

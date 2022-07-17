@@ -1,6 +1,6 @@
-FROM almalinux:latest AS build
-RUN  yum upgrade -y &&\
-     yum install -y httpd zip && \
+FROM alpine:latest AS build
+RUN  apk upgrade --no-cache &&\
+     apk add apache2 && \
      chown apache:apache /var/log/httpd && \
      sed -i 's/Listen 80/Listen 8080/' /etc/httpd/conf/httpd.conf && \
      sed -i 's/#ServerName www.example.com:80/ServerName www.example.com:8080/' /etc/httpd/conf/httpd.conf &&\
