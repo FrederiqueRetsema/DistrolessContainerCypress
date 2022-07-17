@@ -1,7 +1,5 @@
 COPY --from=build /tmp/passwd_apache /etc/passwd
 COPY --from=build /tmp/group_apache /etc/group
 COPY --from=build /usr/sbin/httpd /usr/sbin/httpd
-COPY --from=build /bin/mknod /bin/mknod
-RUN /bin/mknod -m 0666 /dev/urandom c 1 9
 USER apache
 ENTRYPOINT ["/usr/sbin/httpd","-D","FOREGROUND"]
