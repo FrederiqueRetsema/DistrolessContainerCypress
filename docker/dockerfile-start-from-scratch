@@ -1,3 +1,3 @@
 FROM scratch
-COPY --from=build /tmp/passwd_apache /etc/passwd
-COPY --from=build /tmp/group_apache /etc/group
+COPY --from=build /etc/passwd /etc/passwd
+COPY --from=build /etc/group /etc/group

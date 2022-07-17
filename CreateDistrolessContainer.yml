@@ -163,6 +163,7 @@ Resources:
                 #!/bin/bash
 
                 yum install git -y
+                yum install dos2unix httpd -y
                 
               mode: 00500        
 
@@ -209,6 +210,7 @@ Resources:
                 chmod_file() {
                   LAST_THREE_CHARS=$(echo $FILE | awk '{print substr($0,length($0)-2,3)}')
 
+                  dos2unix $FILE
                   if test "$LAST_THREE_CHARS" == '.sh'
                   then
                     chmod 700 $FILE
@@ -277,12 +279,12 @@ Resources:
 
                 BUILD_DOCKERFILE="build-dockerfile"
                 BUILD_DOCKERFILE_LDD="build-dockerfile-ldd"
-                BUILD_DOCKERFILE_LD_DEBUG="build-dockerfile-ld_debug"
                 BUILD_DOCKERFILE_STRACE="build-dockerfile-strace"
                 BUILD_DOCKERFILE_GET_FILES="build-dockerfile-get-files"
 
                 COPY_COMMANDS_FILE_NAME="copy-commands"
                 COPY_COMMANDS_FILE="$BUILD_DIR/$COPY_COMMANDS_FILE_NAME"
+                COPY_COMMANDS_HEAD="$BUILD_DIR/exec-cp-head.sh"
 
                 START_TEST_SCRIPT="$REPO_DIR/scripts/start-test.sh"
                 STOP_TEST_SCRIPT="$REPO_DIR/scripts/start-test.sh"
@@ -316,7 +318,7 @@ Resources:
 
                   cat "$DOCKER_DIR/dockerfile-head" > $DOCKERFILE
 
-                  echo "RUN  yum install -y strace"        >> $DOCKERFILE
+                  echo "RUN  yum install -y strace" >> $DOCKERFILE
                   echo "COPY ./exec-strace.sh /"    >> $DOCKERFILE
 
                   echo 'ENTRYPOINT ["/usr/bin/stdbuf", "-o0", "-e0", "/bin/sh", "-c", "sh /exec-strace.sh"]' >> $DOCKERFILE
@@ -375,12 +377,21 @@ Resources:
                           uniq > "$COPY_COMMANDS_FILE"
                 }
 
+                add_head_of_copy_file() {
+                  cp "$COPY_COMMANDS_HEAD" "/tmp/$COPY_COMMANDS_FILE_NAME.$$"
+                  cat "$COPY_COMMANDS_FILE" >> "/tmp/$COPY_COMMANDS_FILE_NAME.$$"
+                  cp "/tmp/$COPY_COMMANDS_FILE_NAME.$$" "$COPY_COMMANDS_FILE"
+                }
+
                 create_tarfile() {
                         cd "$BUILD_DIR/tar" || exit 1
+                        chown -R apache:apache *
                         tar -cvzf ../allfiles.tar.gz *
                 }                
 
                 prepare_dirs
+
+                cd "$BUILD_DIR"
                 copy_dockerfiles_to_build_dir
 
                 create_build_dockerfile_ldd
@@ -395,10 +406,12 @@ Resources:
                 remove_dev_proc_and_temp_files_from_strace_output
 
                 sort_unique_copy_files
+                add_head_of_copy_file
 
                 create_dockerfile_get_files
                 build_build_container "$BUILD_DOCKERFILE_GET_FILES" "build"
                 get_files
+                create_tar_file
 
                 stop_test_script
 

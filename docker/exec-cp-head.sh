@@ -18,7 +18,7 @@ copy_file() {
   if test -f "$FROM"
   then
     create_dir_if_necessary "$TO"
-    cp -r "$FROM" "$TO"
+    cp -r -L "$FROM" "$TO"
   fi
 }
 
