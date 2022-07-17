@@ -276,7 +276,8 @@ Resources:
                 CYPRESS_DIR="$REPO_DIR/e2e"
 
                 BUILD_DOCKERFILE="build-dockerfile"
-                BUILD_DOCKERFILE_LDD="build-dockerfile-ldd"
+                BUILD_DOCKERFILE_LDD_HTTPD="build-dockerfile-ldd-httpd"
+                BUILD_DOCKERFILE_LDD_MKNOD="build-dockerfile-ldd-mknod"
                 BUILD_DOCKERFILE_STRACE="build-dockerfile-strace"
 
                 START_TEST_SCRIPT="$REPO_DIR/scripts/start-test.sh"
@@ -286,16 +287,26 @@ Resources:
                   cp -r "$DOCKER_DIR"/* "$BUILD_DIR"
                 }
 
-                create_build_dockerfile_ldd() {
+                create_build_dockerfile_ldd_httpd() {
                   DOCKERFILE="./$BUILD_DOCKERFILE_LDD"
 
                   cat "$DOCKER_DIR/dockerfile-head" > $DOCKERFILE
 
                   echo "RUN  apk add lddtree"       >> $DOCKERFILE
-                  echo "COPY ./exec-ldd.sh /"       >> $DOCKERFILE
-                  echo "COPY ./exec-strace.sh /"    >> $DOCKERFILE
+                  echo "COPY ./exec-ldd-httpd.sh /" >> $DOCKERFILE
 
-                  echo 'ENTRYPOINT ["/bin/sh", "-c", "sh /exec-ldd.sh"]' >> $DOCKERFILE
+                  echo 'ENTRYPOINT ["/bin/sh", "-c", "sh /exec-ldd-httpd.sh"]' >> $DOCKERFILE
+                }
+
+                create_build_dockerfile_ldd_mknod() {
+                  DOCKERFILE="./$BUILD_DOCKERFILE_LDD"
+
+                  cat "$DOCKER_DIR/dockerfile-head" > $DOCKERFILE
+
+                  echo "RUN  apk add lddtree"       >> $DOCKERFILE
+                  echo "COPY ./exec-ldd-mknod.sh /" >> $DOCKERFILE
+
+                  echo 'ENTRYPOINT ["/bin/sh", "-c", "sh /exec-ldd-mknod.sh"]' >> $DOCKERFILE
                 }
 
                 create_build_dockerfile_strace() {
@@ -304,7 +315,6 @@ Resources:
                   cat "$DOCKER_DIR/dockerfile-head" > $DOCKERFILE
 
                   echo "RUN  apk add strace"        >> $DOCKERFILE
-                  echo "COPY ./exec-ldd.sh /"       >> $DOCKERFILE
                   echo "COPY ./exec-strace.sh /"    >> $DOCKERFILE
 
                   echo 'ENTRYPOINT ["/bin/sh", "-c", "sh /exec-strace.sh"]' >> $DOCKERFILE
@@ -321,8 +331,12 @@ Resources:
                   $START_TEST_SCRIPT
                 }
 
-                get_copy_lines_from_ldd() {
-                  docker run -i -v "$BUILD_DIR":/build_dir "${ContainerName}:ldd"
+                get_copy_lines_from_ldd_httpd() {
+                  docker run -i -v "$BUILD_DIR":/build_dir "${ContainerName}:ldd-httpd"
+                }
+
+                get_copy_lines_from_ldd_mknod() {
+                  docker run -i -v "$BUILD_DIR":/build_dir "${ContainerName}:ldd-mknod"
                 }
 
                 get_copy_lines_from_strace() {
@@ -339,12 +353,15 @@ Resources:
 
                 mkdir -p "$BUILD_DIR"
                 cd "$BUILD_DIR"
+                rm -f "$BUILD_DIR/docker-copy-commands-ldd"
 
                 copy_dockerfiles_to_build_dir
 
                 cd "$DOCKER_DIR"
-                create_build_dockerfile_ldd
-                build_build_container "$BUILD_DOCKERFILE_LDD" "ldd"
+                create_build_dockerfile_ldd_httpd
+                build_build_container "$BUILD_DOCKERFILE_LDD_HTTPD" "ldd-httpd"
+                create_build_dockerfile_ldd_mknod
+                build_build_container "$BUILD_DOCKERFILE_LDD_MKNOD" "ldd-mknod"
                 create_build_dockerfile_strace
                 build_build_container "$BUILD_DOCKERFILE_STRACE" "strace"
 
@@ -375,11 +392,10 @@ Resources:
 
                 create_dockerfile_distroless() {
                   cat "$DOCKERFILE_HEAD_FILE" \
-                      "$DOCKERFILE_START_FROM_SCRATCH_LINE_FILE" \
+                      "$DOCKERFILE_START_FROM_SCRATCH_FILE" \
                       "$DOCKERFILE_COPY_COMMANDS_FILE" \
                       "$DOCKERFILE_TAIL_FILE" | \
                   grep -v '/dev/' | \
-                  grep -v '/var/www/logs' | \
                   grep -v 'run/'  > "$DOCKERFILE_DISTROLESS"                
                 }
 

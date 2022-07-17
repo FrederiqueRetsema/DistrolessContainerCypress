@@ -1,4 +1,6 @@
-RUN touch /var/www/logs/access.logs && \
-    touch /var/www/logs/error.logs
+RUN rm -fr /var/www/logs && \
+    mkdir -p /var/www/logs && \
+    touch /var/www/logs/access.log && \
+    touch /var/www/logs/error.log
 FROM scratch
     
