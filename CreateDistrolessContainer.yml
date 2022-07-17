@@ -362,7 +362,7 @@ Resources:
                 REPO_DIR="${RepoDir}"
                 BUILD_DIR="$REPO_DIR/builddir"
                 DOCKERFILE_HEAD_FILE="$BUILD_DIR/dockerfile-head"
-                DOCKERFILE_FROM_SCRATCH_LINE_FILE=$BUILD_DIR/dockerfile-from-scratch-line"
+                DOCKERFILE_START_FROM_SCRATCH_FILE="$BUILD_DIR/dockerfile-start-from-scratch"
                 DOCKERFILE_COPY_COMMANDS_FILE="$BUILD_DIR/dockerfile-copy-commands"
                 DOCKERFILE_TAIL_FILE="$BUILD_DIR/dockerfile-tail"
                 DOCKERFILE_DISTROLESS="$BUILD_DIR/dockerfile-distroless"
@@ -374,15 +374,14 @@ Resources:
                 }
 
                 create_dockerfile_distroless() {
-                  echo "FROM scratch" > "$DOCKERFILE_FROM_SCRATCH_LINE_FILE"
-
                   cat "$DOCKERFILE_HEAD_FILE" \
-                      "$DOCKERFILE_FROM_SCRATCH_LINE_FILE" \
+                      "$DOCKERFILE_START_FROM_SCRATCH_LINE_FILE" \
                       "$DOCKERFILE_COPY_COMMANDS_FILE" \
                       "$DOCKERFILE_TAIL_FILE" | \
                   grep -v '/dev/' | \
                   grep -v '/var/www/logs' | \
-                  grep -v 'run/'  > "$DOCKERFILE_DISTROLESS"                }
+                  grep -v 'run/'  > "$DOCKERFILE_DISTROLESS"                
+                }
 
                 build_dockerfile_distroless() {
                         DOCKERFILE="$DOCKERFILE_DISTROLESS"

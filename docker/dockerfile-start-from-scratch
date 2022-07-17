@@ -1,0 +1,4 @@
+RUN touch /var/www/logs/access.logs && \
+    touch /var/www/logs/error.logs
+FROM scratch
+    
