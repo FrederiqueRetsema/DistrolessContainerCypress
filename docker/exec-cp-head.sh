@@ -24,9 +24,6 @@ copy_file() {
 
 create_var_www_logs() {
   mkdir -p /build_dir/tar/var/www/logs
-#  touch /build_dir/tar/var/www/logs/access.log
-#  touch /build_dir/tar/var/www/logs/error.log
-#  chmod a+w /build_dir/tar/var/www/logs/*
 }
 
 create_run_apache2() {

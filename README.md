@@ -101,6 +101,9 @@ This Dockerfile contains of two parts:
 * Put the USER and ENTRYPOINT commands in the docker/dockerfile-tail file. In the example, you see that a COPY command for the httpd command itself is also added to the dockerfile-tail file. 
 * Add all tests under the e2e directory in the repo.
 * Change the base URL in the e2e/cypress.config.js file. The {LOCALHOST} part will be replaced by the local IP address of the build virtual machine.
+* When the distroless container misses files or directories, you can change the file exec-cp-head.sh. In general, creating the directory under /build_dir/tar should be enough.
+
+## Calling the distribution
 
 ## Maintenance
 You will have to change the Cypress version number in the file e2e/package.json a few times per year, unfortunately Cypress doesn't use the *latest* tag. You can find the version list of the container cypress/included via Docker hub: https://hub.docker.com/r/cypress/included/tags

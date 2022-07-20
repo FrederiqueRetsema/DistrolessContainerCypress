@@ -481,6 +481,7 @@ Resources:
                 push_to_ecr() {
                   aws ecr get-login-password --region ${AWS::Region} | docker login --username AWS --password-stdin ${ECRRepository}
                   docker tag ${ContainerName}:${ContainerTag} ${ECRRepository}:${ContainerTag} 
+                  docker tag ${ContainerName}:${ContainerTag} ${ECRRepository}:latest
                   docker push -a ${ECRRepository}
                 }
 
