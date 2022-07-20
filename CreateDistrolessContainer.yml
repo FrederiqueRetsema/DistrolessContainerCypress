@@ -547,27 +547,27 @@ Resources:
             /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource DistrolessContainerBuildInstance --region ${AWS::Region}
             /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource DistrolessContainerBuildInstance --region ${AWS::Region}
   
-    StateMachineExecutionRole:
-      Type: "AWS::IAM::Role"
-      Properties:
-        AssumeRolePolicyDocument:
-          Version: "2012-10-17"
-          Statement:
-            - Effect: Allow
-              Principal:
-                Service: states.amazonaws.com
-              Action: "sts:AssumeRole"
-        Path: "/"
-        Policies:
-          - PolicyName: CloudFormationPolicy
-            PolicyDocument:
-              Version: "2012-10-17"
-              Statement:
-                - Effect: Allow
-                  Action:
-                    - "cloudformation:CreateStack"
-                    - "cloudformation:DeleteStack"
-                  Resource: "*"
+  StateMachineExecutionRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: states.amazonaws.com
+            Action: "sts:AssumeRole"
+      Path: "/"
+      Policies:
+        - PolicyName: CloudFormationPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "cloudformation:CreateStack"
+                  - "cloudformation:DeleteStack"
+                Resource: "*"
 
   StateMachineNewVersionDistrolessContainer:
     Type: AWS::StepFunctions::StateMachine
