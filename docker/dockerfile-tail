@@ -1,3 +1,6 @@
+# Add your last statements of the Dockerfile here. Usually used to copy the command that is started within the distroless container itself, setting the user and
+# adding the ENTRYPOINT or CMD
+
 COPY --from=build /usr/sbin/httpd /usr/sbin/httpd
 USER apache
 ENTRYPOINT ["/usr/sbin/httpd","-D","FOREGROUND"]

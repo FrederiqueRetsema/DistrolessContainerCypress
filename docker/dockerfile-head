@@ -1,3 +1,9 @@
+# This is the first part of the Dockerfile. In this part, you install all packages of the distroless container. You also change settings files to connect to the 
+# database. This head of the Dockerfile is used by the Dockerfile that creates COPY commands based on the ldd command, it is also used by the Dockerfile that 
+# creates COPY commands based on the strace command and, last but not least, it is used by the Dockerfile that creates the distroless container.
+#
+# See for an example the README.md
+
 FROM alpine:latest AS build
 RUN  apk upgrade --no-cache &&\
      apk add apache2 && \

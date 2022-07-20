@@ -1,3 +1,6 @@
+# This part of the Dockerfile is added after the dockerfile-head commands. The assumption here is that below this point only COPY or ADD commands are put here.
+# Use build as referal to the first part of the Dockerfile. See also README.MD.
+
 FROM scratch
 COPY --from=build /etc/passwd /etc/passwd
 COPY --from=build /etc/group /etc/group
