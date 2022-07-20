@@ -105,6 +105,10 @@ This Dockerfile contains of two parts:
 
 ## Calling the distribution
 
-## Maintenance
+# Maintenance/Operations
+
+## Cypress version
 You will have to change the Cypress version number in the file e2e/package.json a few times per year, unfortunately Cypress doesn't use the *latest* tag. You can find the version list of the container cypress/included via Docker hub: https://hub.docker.com/r/cypress/included/tags
 
+## Falling back to a previous version of the container
+You can retag a container based on the date-tag. See for more information on retagging: https://docs.aws.amazon.com/AmazonECR/latest/userguide/image-retag.html
