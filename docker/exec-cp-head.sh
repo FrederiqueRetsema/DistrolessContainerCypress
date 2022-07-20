@@ -33,5 +33,5 @@ create_run_apache2() {
   mkdir -p /build_dir/tar/run/apache2
 }
 
-create_logs
+create_var_www_logs
 create_run_apache2
