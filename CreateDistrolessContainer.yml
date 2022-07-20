@@ -573,195 +573,193 @@ Resources:
     Type: AWS::StepFunctions::StateMachine
     Properties:
       RoleArn: !GetAtt [ StateMachineExecutionRole, Arn ]
-      DefinitionString:
-        !Sub
-          - |-
-            {
-              "Comment": "Create a new version of the Distroless Container",
-              "StartAt": "Create Stack",
-              "States": {
-                "Create Stack": {
-                  "Type": "Task",
-                  "Resource": "arn:aws:states:::aws-sdk:cloudformation:createStack",
-                  "Parameters": {
-                    "StackName": "CreateDistrolessContainer",
-                    "TemplateURL": "https://${S3BucketWithCloudFormationTemplates}.s3.amazonaws.com/${AWS::StackName}.yml",
-                    "Capabilities": [
-                      "CAPABILITY_IAM"
-                    ],
-                    "Parameters": [
-                      {
-                        "ParameterKey": "DownloadCommands",
-                        "ParameterValue": "${DownloadCommands}"
-                      },
-                      {
-                        "ParameterKey": "VpcId",
-                        "ParameterValue": "${VpcId}"
-                      },
-                      {
-                        "ParameterKey": "SubnetId",
-                        "ParameterValue": "${SubnetId}"
-                      },
-                      {
-                        "ParameterKey": "ContainerName",
-                        "ParameterValue": "${ContainerName}"
-                      },
-                      {
-                        "ParameterKey": "ContainerTag",
-                        "ParameterValue": "${ContainerTag}"
-                      },
-                      {
-                        "ParameterKey": "ECRRepository",
-                        "ParameterValue": "${ECRRepository}"
-                      },
-                      {
-                        "ParameterKey": "S3BucketWithTestResults",
-                        "ParameterValue": "${S3BucketWithTestResults}"
-                      },
-                      {
-                        "ParameterKey": "S3BucketKeyPrefix",
-                        "ParameterValue": "${S3BucketKeyPrefix}"
-                      },
-                      {
-                        "ParameterKey": "EC2KeyName",
-                        "ParameterValue": "${EC2KeyName}"
-                      }
-                    ]
-                  },
-                  "Next": "Get Stack State Create Stack"
-                },
-                "Get Stack State Create Stack": {
-                  "Type": "Task",
-                  "Parameters": {
-                    "StackName": "CreateDistrolessContainer"
-                  },
-                  "Resource": "arn:aws:states:::aws-sdk:cloudformation:describeStacks",
-                  "Next": "Stack Status Create"
-                },
-                "Stack Status Create": {
-                  "Type": "Choice",
-                  "Choices": [
-                    {
-                      "Variable": "$.Stacks[0].StackStatus",
-                      "StringEquals": "CREATE_COMPLETE",
-                      "Next": "Delete Stack"
-                    },
-                    {
-                      "Or": [
-                        {
-                          "Variable": "$.Stacks[0].StackStatus",
-                          "StringEquals": "DELETE_COMPLETE"
-                        },
-                        {
-                          "Variable": "$.Stacks[0].StackStatus",
-                          "StringEquals": "ROLLBACK_COMPLETE"
-                        },
-                        {
-                          "Variable": "$.Stacks[0].StackStatus",
-                          "StringEquals": "CREATE_FAILED"
-                        },
-                        {
-                          "Variable": "$.Stacks[0].StackStatus",
-                          "StringEquals": "DELETE_FAILED"
-                        },
-                        {
-                          "Variable": "$.Stacks[0].StackStatus",
-                          "StringEquals": "ROLLBACK_FAILED"
-                        }
-                      ],
-                      "Next": "Create Failed"
-                    }
-                  ],
-                  "Default": "Wait 60 seconds Create"
-                },
-                "Wait 60 seconds Create": {
-                  "Type": "Wait",
-                  "Seconds": 60,
-                  "Next": "Get Stack State Create Stack"
-                },
-                "Create Failed": {
-                  "Type": "Pass",
-                  "End": true,
-                  "Result": {
-                    "Result": "Failed"
-                  }
-                },
-                "Delete Stack": {
-                  "Type": "Task",
-                  "Resource": "arn:aws:states:::aws-sdk:cloudformation:deleteStack",
-                  "Parameters": {
-                    "StackName": "CreateDistrolessContainer"
-                  },
-                  "Next": "Get Stack State Delete Stack"
-                },
-                "Get Stack State Delete Stack": {
-                  "Type": "Task",
-                  "Parameters": {
-                    "StackName": "CreateDistrolessContainer"
-                  },
-                  "Resource": "arn:aws:states:::aws-sdk:cloudformation:describeStacks",
-                  "Next": "Stack Status Delete",
-                  "Catch": [
+      DefinitionString: !Sub |
+        {
+          "Comment": "Create a new version of the Distroless Container",
+          "StartAt": "Create Stack",
+          "States": {
+            "Create Stack": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::aws-sdk:cloudformation:createStack",
+              "Parameters": {
+                "StackName": "CreateDistrolessContainer",
+                "TemplateURL": "https://${S3BucketWithCloudFormationTemplates}.s3.amazonaws.com/${AWS::StackName}.yml",
+                "Capabilities": [
+                  "CAPABILITY_IAM"
+                ],
+                "Parameters": [
                   {
-                      "ErrorEquals": [
-                          "CloudFormation.CloudFormationException"
-                      ],
-                      "Next": "Succesful"
-                  }]      
+                    "ParameterKey": "DownloadCommands",
+                    "ParameterValue": "${DownloadCommands}"
+                  },
+                  {
+                    "ParameterKey": "VpcId",
+                    "ParameterValue": "${VpcId}"
+                  },
+                  {
+                    "ParameterKey": "SubnetId",
+                    "ParameterValue": "${SubnetId}"
+                  },
+                  {
+                    "ParameterKey": "ContainerName",
+                    "ParameterValue": "${ContainerName}"
+                  },
+                  {
+                    "ParameterKey": "ContainerTag",
+                    "ParameterValue": "${ContainerTag}"
+                  },
+                  {
+                    "ParameterKey": "ECRRepository",
+                    "ParameterValue": "${ECRRepository}"
+                  },
+                  {
+                    "ParameterKey": "S3BucketWithTestResults",
+                    "ParameterValue": "${S3BucketWithTestResults}"
+                  },
+                  {
+                    "ParameterKey": "S3BucketKeyPrefix",
+                    "ParameterValue": "${S3BucketKeyPrefix}"
+                  },
+                  {
+                    "ParameterKey": "EC2KeyName",
+                    "ParameterValue": "${EC2KeyName}"
+                  }
+                ]
+              },
+              "Next": "Get Stack State Create Stack"
+            },
+            "Get Stack State Create Stack": {
+              "Type": "Task",
+              "Parameters": {
+                "StackName": "CreateDistrolessContainer"
+              },
+              "Resource": "arn:aws:states:::aws-sdk:cloudformation:describeStacks",
+              "Next": "Stack Status Create"
+            },
+            "Stack Status Create": {
+              "Type": "Choice",
+              "Choices": [
+                {
+                  "Variable": "$.Stacks[0].StackStatus",
+                  "StringEquals": "CREATE_COMPLETE",
+                  "Next": "Delete Stack"
                 },
-                "Stack Status Delete": {
-                  "Type": "Choice",
-                  "Choices": [
+                {
+                  "Or": [
                     {
                       "Variable": "$.Stacks[0].StackStatus",
-                      "StringEquals": "DELETE_COMPLETE",
-                      "Next": "Succesful"
+                      "StringEquals": "DELETE_COMPLETE"
                     },
                     {
-                      "Or": [
-                        {
-                          "Variable": "$.Stacks[0].StackStatus",
-                          "StringEquals": "ROLLBACK_COMPLETE"
-                        },
-                        {
-                          "Variable": "$.Stacks[0].StackStatus",
-                          "StringEquals": "CREATE_FAILED"
-                        },
-                        {
-                          "Variable": "$.Stacks[0].StackStatus",
-                          "StringEquals": "DELETE_FAILED"
-                        },
-                        {
-                          "Variable": "$.Stacks[0].StackStatus",
-                          "StringEquals": "ROLLBACK_FAILED"
-                        }
-                      ],
-                      "Next": "Delete Failed"
+                      "Variable": "$.Stacks[0].StackStatus",
+                      "StringEquals": "ROLLBACK_COMPLETE"
+                    },
+                    {
+                      "Variable": "$.Stacks[0].StackStatus",
+                      "StringEquals": "CREATE_FAILED"
+                    },
+                    {
+                      "Variable": "$.Stacks[0].StackStatus",
+                      "StringEquals": "DELETE_FAILED"
+                    },
+                    {
+                      "Variable": "$.Stacks[0].StackStatus",
+                      "StringEquals": "ROLLBACK_FAILED"
                     }
                   ],
-                  "Default": "Wait 60 seconds Delete"
-                },
-                "Wait 60 seconds Delete": {
-                  "Type": "Wait",
-                  "Seconds": 60,
-                  "Next": "Get Stack State Delete Stack"
-                },
-                "Succesful": {
-                  "Type": "Pass",
-                  "End": true,
-                  "Result": {
-                    "Result": "Failed"
-                  }
-                },
-                "Delete Failed": {
-                  "Type": "Pass",
-                  "End": true,
-                  "Result": {
-                    "Result": "Failed"
-                  }
+                  "Next": "Create Failed"
                 }
+              ],
+              "Default": "Wait 60 seconds Create"
+            },
+            "Wait 60 seconds Create": {
+              "Type": "Wait",
+              "Seconds": 60,
+              "Next": "Get Stack State Create Stack"
+            },
+            "Create Failed": {
+              "Type": "Pass",
+              "End": true,
+              "Result": {
+                "Result": "Failed"
+              }
+            },
+            "Delete Stack": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::aws-sdk:cloudformation:deleteStack",
+              "Parameters": {
+                "StackName": "CreateDistrolessContainer"
+              },
+              "Next": "Get Stack State Delete Stack"
+            },
+            "Get Stack State Delete Stack": {
+              "Type": "Task",
+              "Parameters": {
+                "StackName": "CreateDistrolessContainer"
+              },
+              "Resource": "arn:aws:states:::aws-sdk:cloudformation:describeStacks",
+              "Next": "Stack Status Delete",
+              "Catch": [
+              {
+                  "ErrorEquals": [
+                      "CloudFormation.CloudFormationException"
+                  ],
+                  "Next": "Succesful"
+              }]      
+            },
+            "Stack Status Delete": {
+              "Type": "Choice",
+              "Choices": [
+                {
+                  "Variable": "$.Stacks[0].StackStatus",
+                  "StringEquals": "DELETE_COMPLETE",
+                  "Next": "Succesful"
+                },
+                {
+                  "Or": [
+                    {
+                      "Variable": "$.Stacks[0].StackStatus",
+                      "StringEquals": "ROLLBACK_COMPLETE"
+                    },
+                    {
+                      "Variable": "$.Stacks[0].StackStatus",
+                      "StringEquals": "CREATE_FAILED"
+                    },
+                    {
+                      "Variable": "$.Stacks[0].StackStatus",
+                      "StringEquals": "DELETE_FAILED"
+                    },
+                    {
+                      "Variable": "$.Stacks[0].StackStatus",
+                      "StringEquals": "ROLLBACK_FAILED"
+                    }
+                  ],
+                  "Next": "Delete Failed"
+                }
+              ],
+              "Default": "Wait 60 seconds Delete"
+            },
+            "Wait 60 seconds Delete": {
+              "Type": "Wait",
+              "Seconds": 60,
+              "Next": "Get Stack State Delete Stack"
+            },
+            "Succesful": {
+              "Type": "Pass",
+              "End": true,
+              "Result": {
+                "Result": "Failed"
+              }
+            },
+            "Delete Failed": {
+              "Type": "Pass",
+              "End": true,
+              "Result": {
+                "Result": "Failed"
               }
             }
+          }
+        }
   ScheduledCreationOfNewContainerImage:
     Type: AWS::Events::Rule
     Properties: 
