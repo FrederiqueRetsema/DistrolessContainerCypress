@@ -104,6 +104,7 @@ This Dockerfile contains of two parts:
 * When the distroless container misses files or directories, you can change the file exec-cp-head.sh. In general, creating the directory under /build_dir/tar should be enough.
 
 ## Calling the distribution
+You can use the CreateScheduledCreation CloudFormation template. 
 
 # Maintenance/Operations
 
