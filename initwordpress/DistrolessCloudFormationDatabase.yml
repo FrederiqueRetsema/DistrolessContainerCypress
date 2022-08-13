@@ -23,7 +23,7 @@ Parameters:
     AllowedValues:
       - true
       - false
-    Default: true
+    Default: false
   EnableHttpEndpoint: 
     Description: Enable HTTP endpoint to make it possible to use the query editor in the RDS console 
     Type: String
@@ -32,54 +32,55 @@ Parameters:
       - false
     Default: true
 
-  PrivateSubnetReadOnlyAZaId:
-    Type: AWS::SSM::Parameter::Value<String>
-    Default: /wordpress/network/private-subnet-read-only-aza
-  PrivateSubnetWriteAZaId:
-    Type: AWS::SSM::Parameter::Value<String>
-    Default: /wordpress/network/private-subnet-write-aza
-  PrivateSubnetReadOnlyAZbId:
-    Type: AWS::SSM::Parameter::Value<String>
-    Default: /wordpress/network/private-subnet-read-only-azb
-  PrivateSubnetWriteAZbId:
-    Type: AWS::SSM::Parameter::Value<String>
-    Default: /wordpress/network/private-subnet-write-azb
+  WordPressVpcId:
+    Type: String
 
-  WordPressDBSecurityGroup: 
-    Type: AWS::SSM::Parameter::Value<String>
-    Default: /wordpress/network/sg/database-security-group
+  SubnetAZaId:
+    Type: String
+  SubnetAZbId:
+    Type: String
 
   DatabaseClusterIdentifier: 
     Description: Database cluster identifier
-    Type: AWS::SSM::Parameter::Value<String>
-    Default: /wordpress/database/database-cluster-identifier
+    Type: String
+    Default: WordpressDistrolessExampleDatabase
   DatabaseName: 
     Description: DatabaseName
-    Type: AWS::SSM::Parameter::Value<String>
-    Default: /wordpress/database/database-name
+    Type: String
+    Default: wordpress
   TablePrefix:
     Description: Table prefix
-    Type: AWS::SSM::Parameter::Value<String>
-    Default: /wordpress/database/table-prefix
+    Type: String
+    Default: wp_
 
   AdminUserName: 
     Description: User name for the Admin user
-    Type: AWS::SSM::Parameter::Value<String>
-    Default: /wordpress/firstinit/database-admin-username
+    Type: String
+    Default: database_admin
   AdminPassword: 
     Description: Password for the Admin user
-    Type: AWS::SSM::Parameter::Value<String>
-    Default: /wordpress/firstinit/database-admin-password
+    Type: String
+    Default: "C1nder3llaInW0rdpre$$!"
     NoEcho: true
 
 Resources:
 
-  FirstInitParameter:
-    Type: AWS::SSM::Parameter
+  DatabaseSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
     Properties:
-      Name: "/wordpress/firstinit/firstinit"
-      Type: String
-      Value: "True"
+      GroupName: DatabaseSecurityGroup
+      GroupDescription: Write Securitygroup for the database
+      VpcId: !Ref WordPressVpcId
+
+  DatabaseSecurityGroupIngressReadOnly:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref DatabaseSecurityGroup
+      Description: Database access
+      CidrIp: 10.0.0.0/16
+      FromPort: 3306
+      ToPort: 3306
+      IpProtocol: TCP
 
   WordPressDatabaseSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
@@ -87,8 +88,8 @@ Resources:
       DBSubnetGroupDescription: WordPress Subnet Group
       DBSubnetGroupName: wordpresssubnetgroup
       SubnetIds:
-        - !Ref PrivateSubnetReadOnlyAZaId
-        - !Ref PrivateSubnetReadOnlyAZbId
+        - !Ref SubnetAZaId
+        - !Ref SubnetAZbId
 
   WordPressDatabaseClusterParameterGroup:
     Type: AWS::RDS::DBClusterParameterGroup
@@ -98,11 +99,11 @@ Resources:
       Parameters:
         server_audit_events: CONNECT,QUERY,QUERY_DCL,QUERY_DDL,QUERY_DML,TABLE
         server_audit_logging: 1
-        server_audit_logs_upload: 1             # Uploads logs to CloudWatch
+        server_audit_logs_upload: 1
 
   WordPressDatabaseCluster:
     Type: AWS::RDS::DBCluster
-    DeletionPolicy: Delete          # Cannot be a parameter, unfortunately...
+    DeletionPolicy: Delete
     Properties:
       DatabaseName: !Ref DatabaseName
       DBClusterIdentifier: !Ref DatabaseClusterIdentifier
@@ -120,17 +121,10 @@ Resources:
         MaxCapacity: 64
         SecondsUntilAutoPause: !Ref SecondsUntilAutoPause  
       VpcSecurityGroupIds:
-        - !Ref WordPressDBSecurityGroup
+        - !Ref DatabaseSecurityGroup
 
-  WordPressDBServerEndpointParameter:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Name: "/wordpress/database/database-server-endpoint"
-      Type: String
-      Value: !GetAtt ["WordPressDatabaseCluster", "Endpoint.Address"]
-  WordPressDBClusterArnParameter:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Name: "/wordpress/database/database-arn"
-      Type: String
-      Value: !Sub "arn:aws:rds:${AWS::Region}:${AWS::AccountId}:cluster:${WordPressDatabaseCluster}"
+Outputs:
+  WordPressDBServerEndpoint:
+    Value: !GetAtt ["WordPressDatabaseCluster", "Endpoint.Address"]
+  WordPressDBClusterArn:
+    Value: !Sub "arn:aws:rds:${AWS::Region}:${AWS::AccountId}:cluster:${WordPressDatabaseCluster}"

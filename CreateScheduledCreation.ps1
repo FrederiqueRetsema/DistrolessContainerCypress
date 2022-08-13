@@ -9,7 +9,7 @@ aws cloudformation create-stack --stack-name CreateScheduledCreation `
 --template-url https://${BucketName}.s3.amazonaws.com/CreateScheduledCreation.yml `
 --capabilities CAPABILITY_IAM  `
 --disable-rollback `
---parameter ParameterKey=DownloadCommands,ParameterValue="git clone https://github.com/FrederiqueRetsema/DistrolessContainerCypress" `
+--parameter ParameterKey=DownloadCommands,ParameterValue="git clone https://github.com/FrederiqueRetsema/DistrolessContainerCypress; git checkout wordpress" `
             ParameterKey=VpcId,ParameterValue="vpc-0262eba2519b993e7" `
             ParameterKey=SubnetId,ParameterValue="subnet-0dcefa6fc75a5845f" `
             ParameterKey=ContainerName,ParameterValue="distroless-container" `

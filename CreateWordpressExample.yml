@@ -1,43 +1,16 @@
-# CreateScheduledCreation
-# =======================
+# CreateWordpressExample
+# ======================
 
 AWSTemplateFormatVersion: "2010-09-09"
-Description: Create scheduled creation of distroless images
+Description: Create example based on WordPress (complete example including network etc)
 
 Parameters:
 
   DownloadCommands:
     Description: Commands to get the repository to the EC2
     Type: String
+    Default: "git clone https://github.com/FrederiqueRetsema/DistrolessContainerCypress; git checkout wordpress"
 
-  VpcId:
-    Description: Vpc for EC2 instance
-    Type: String
-  SubnetId:
-    Description: Subnet for EC2 instance
-    Type: String
-
-  ContainerName:
-    Description: Name of this container image
-    Type: String
-  ContainerTag:
-    Description: Tag of this container image
-    Type: String
-
-  ECRRepository:
-    Description: "format 123456789012.dkr.ecr.eu-west-1.amazonaws.com/distroless-container"
-    Type: String
-
-  S3BucketWithTestResults:
-    Description: "format bucket-with-testresults"
-    Type: String
-  S3BucketKeyPrefix:
-    Description: "format first-dir/second-dir"
-    Type: String
-  S3BucketWithCloudFormationTemplates:
-    Description: "format bucket-with-cloudformation-templates"
-    Type: String
-    
   CypressImage:
     Type: String
     Default: "cypress/included:10.4.0"
@@ -62,7 +35,11 @@ Parameters:
     Default: /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-ebs
   CreateNewDistrolessContainerStackName:
     Type: String
-    Default: CreateDistrolessContainer
+    Default: CreateNewWordpressContainer
+  S3BucketWithCloudFormationTemplates:
+    Description: "format bucket-with-cloudformation-templates"
+    Type: String
+    Default: fra-euwest1
 
   ScheduleExpression:
     Type: String
@@ -70,326 +47,34 @@ Parameters:
 
 Resources:
 
-  DistrolessContainerStackLogGroupMessages:
-    Type: AWS::Logs::LogGroup
+  WordpressNetwork:
+    Type: AWS::CloudFormation::Stack
     Properties:
-      LogGroupName: /aws/ec2/DistrolessContainer/messages
-      RetentionInDays: 1
+      TemplateURL: !Sub "https://${S3BucketWithCloudFormationTemplates}.s3.amazonaws.com/DistrolessCloudFormationNetworkVPC.yml"
 
-  DistrolessContainerStackLogGroupCfnInitCmdLog:
-    Type: AWS::Logs::LogGroup
+  WordpressDatabase:
+    Type: AWS::CloudFormation::Stack
     Properties:
-      LogGroupName: /aws/ec2/DistrolessContainer/cfn-init-cmd.log
-      RetentionInDays: 1
+      TemplateURL: !Sub "https://${S3BucketWithCloudFormationTemplates}.s3.amazonaws.com/DistrolessCloudFormationDatabase.yml"
+      Parameters:
+        WordPressVpcId: !GetAtt  WordpressNetwork.Outputs.WordPressVpcId
+        SubnetAZaId: !GetAtt WordpressNetwork.Outputs.SubnetAZa
+        SubnetAZbId: !GetAtt WordpressNetwork.Outputs.SubnetAZb
 
-  DistrolessContainerStackLogGroupCloudInitOutputLog:
-    Type: AWS::Logs::LogGroup
+  WordpressEFS:
+    Type: AWS::CloudFormation::Stack
     Properties:
-      LogGroupName: /aws/ec2/DistrolessContainer/cloud-init-output.log
-      RetentionInDays: 1
+      TemplateURL: !Sub "https://${S3BucketWithCloudFormationTemplates}.s3.amazonaws.com/DistrolessCloudFormationEFS.yml"
+      Parameters:
+        WordPressVpcId: !GetAtt  WordpressNetwork.Outputs.WordPressVpcId
+        SubnetAZaId: !GetAtt WordpressNetwork.Outputs.SubnetAZa
+        SubnetAZbId: !GetAtt WordpressNetwork.Outputs.SubnetAZb
+        EC2InstanceType: !Ref EC2InstanceType        
+        EC2KeyName: !Ref EC2KeyName
+        AmazonLinux2AMI: !Ref AmazonLinux2AMI
 
-  StateMachineExecutionRole:
-    Type: "AWS::IAM::Role"
+  WordpressECR:
+    Type: AWS::CloudFormation::Stack
     Properties:
-      AssumeRolePolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: states.amazonaws.com
-            Action: "sts:AssumeRole"
-      Path: "/"
-      Policies:
-        - PolicyName: CloudFormationSSMEC2Logs
-          PolicyDocument:
-            Version: "2012-10-17"
-            Statement:
-              - Effect: Allow
-                Action:
-                  - "cloudformation:CreateStack"
-                  - "cloudformation:DeleteStack"
-                  - "cloudformation:DescribeStacks"
-                Resource: !Sub "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${CreateNewDistrolessContainerStackName}/*"
-              - Effect: Allow
-                Action:
-                  - "ssm:GetParameters"
-                Resource: !Sub "arn:aws:ssm:*:*:parameter/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-ebs"
-              - Effect: Allow
-                Action: 
-                  - "iam:CreateRole"
-                  - "iam:DeleteRole"
-                  - "iam:AttachRolePolicy"
-                  - "iam:DetachRolePolicy"
-                  - "iam:CreateInstanceProfile"
-                  - "iam:DeleteInstanceProfile"
-                  - "iam:AddRoleToInstanceProfile"
-                  - "iam:RemoveRoleFromInstanceProfile"
-                  - "iam:GetRolePolicy"
-                  - "iam:PutRolePolicy"
-                  - "iam:DeleteRolePolicy"
-                  - "iam:PassRole"
-                Resource: "*"
-              - Effect: Allow
-                Action:
-                  - "ec2:DescribeImages"
-                  - "ec2:DescribeInstances"
-                  - "ec2:DescribeSecurityGroups"
-                  - "ec2:CreateSecurityGroup"
-                  - "ec2:DeleteSecurityGroup"
-                  - "ec2:AuthorizeSecurityGroupIngress"
-                  - "ec2:AuthorizeSecurityGroupEgress"
-                  - "ec2:RevokeSecurityGroupIngress"
-                  - "ec2:RevokeSecurityGroupEgress"
-                  - "ec2:RunInstances"
-                  - "ec2:TerminateInstances"
-                  - "ec2:CreateTags"
-                  - "ec2:DeleteTags"
-                Resource: "*"
-              - Effect: Allow
-                Action:
-                  - "logs:CreateLogStream"
-                  - "logs:CreateLogGroup"
-                  - "logs:PutLogEvents"
-                Resource: "*"
-
-
-  StateMachineNewVersionDistrolessContainer:
-    Type: AWS::StepFunctions::StateMachine
-    Properties:
-      RoleArn: !GetAtt [ StateMachineExecutionRole, Arn ]
-      DefinitionString: !Sub |
-        {
-          "Comment": "Create a new version of the Distroless Container",
-          "StartAt": "Create Stack",
-          "States": {
-            "Create Stack": {
-              "Type": "Task",
-              "Resource": "arn:aws:states:::aws-sdk:cloudformation:createStack",
-              "Parameters": {
-                "StackName": "${CreateNewDistrolessContainerStackName}",
-                "TemplateURL": "https://${S3BucketWithCloudFormationTemplates}.s3.amazonaws.com/${CreateNewDistrolessContainerStackName}.yml",
-                "Capabilities": [
-                  "CAPABILITY_IAM"
-                ],
-                "Parameters": [
-                  {
-                    "ParameterKey": "DownloadCommands",
-                    "ParameterValue": "${DownloadCommands}"
-                  },
-                  {
-                    "ParameterKey": "VpcId",
-                    "ParameterValue": "${VpcId}"
-                  },
-                  {
-                    "ParameterKey": "SubnetId",
-                    "ParameterValue": "${SubnetId}"
-                  },
-                  {
-                    "ParameterKey": "ContainerName",
-                    "ParameterValue": "${ContainerName}"
-                  },
-                  {
-                    "ParameterKey": "ContainerTag",
-                    "ParameterValue": "${ContainerTag}"
-                  },
-                  {
-                    "ParameterKey": "ECRRepository",
-                    "ParameterValue": "${ECRRepository}"
-                  },
-                  {
-                    "ParameterKey": "S3BucketWithTestResults",
-                    "ParameterValue": "${S3BucketWithTestResults}"
-                  },
-                  {
-                    "ParameterKey": "S3BucketKeyPrefix",
-                    "ParameterValue": "${S3BucketKeyPrefix}"
-                  },
-                  {
-                    "ParameterKey": "S3BucketWithCloudFormationTemplates",
-                    "ParameterValue": "${S3BucketWithCloudFormationTemplates}"
-                  },
-                  {
-                    "ParameterKey": "CypressImage",
-                    "ParameterValue": "${CypressImage}"
-                  },
-                  {
-                    "ParameterKey": "EC2KeyName",
-                    "ParameterValue": "${EC2KeyName}"
-                  }
-                ]
-              },
-              "Next": "Get Stack State Create Stack"
-            },
-            "Get Stack State Create Stack": {
-              "Type": "Task",
-              "Parameters": {
-                "StackName": "${CreateNewDistrolessContainerStackName}"
-              },
-              "Resource": "arn:aws:states:::aws-sdk:cloudformation:describeStacks",
-              "Next": "Stack Status Create"
-            },
-            "Stack Status Create": {
-              "Type": "Choice",
-              "Choices": [
-                {
-                  "Variable": "$.Stacks[0].StackStatus",
-                  "StringEquals": "CREATE_COMPLETE",
-                  "Next": "Delete Stack"
-                },
-                {
-                  "Or": [
-                    {
-                      "Variable": "$.Stacks[0].StackStatus",
-                      "StringEquals": "DELETE_COMPLETE"
-                    },
-                    {
-                      "Variable": "$.Stacks[0].StackStatus",
-                      "StringEquals": "ROLLBACK_COMPLETE"
-                    },
-                    {
-                      "Variable": "$.Stacks[0].StackStatus",
-                      "StringEquals": "CREATE_FAILED"
-                    },
-                    {
-                      "Variable": "$.Stacks[0].StackStatus",
-                      "StringEquals": "DELETE_FAILED"
-                    },
-                    {
-                      "Variable": "$.Stacks[0].StackStatus",
-                      "StringEquals": "ROLLBACK_FAILED"
-                    }
-                  ],
-                  "Next": "Create Failed"
-                }
-              ],
-              "Default": "Wait 60 seconds Create"
-            },
-            "Wait 60 seconds Create": {
-              "Type": "Wait",
-              "Seconds": 60,
-              "Next": "Get Stack State Create Stack"
-            },
-            "Create Failed": {
-              "Type": "Pass",
-              "End": true,
-              "Result": {
-                "Result": "Failed"
-              }
-            },
-            "Delete Stack": {
-              "Type": "Task",
-              "Resource": "arn:aws:states:::aws-sdk:cloudformation:deleteStack",
-              "Parameters": {
-                "StackName": "${CreateNewDistrolessContainerStackName}"
-              },
-              "Next": "Get Stack State Delete Stack"
-            },
-            "Get Stack State Delete Stack": {
-              "Type": "Task",
-              "Parameters": {
-                "StackName": "${CreateNewDistrolessContainerStackName}"
-              },
-              "Resource": "arn:aws:states:::aws-sdk:cloudformation:describeStacks",
-              "Next": "Stack Status Delete",
-              "Catch": [
-              {
-                  "ErrorEquals": [
-                      "CloudFormation.CloudFormationException"
-                  ],
-                  "Next": "Succesful"
-              }]      
-            },
-            "Stack Status Delete": {
-              "Type": "Choice",
-              "Choices": [
-                {
-                  "Variable": "$.Stacks[0].StackStatus",
-                  "StringEquals": "DELETE_COMPLETE",
-                  "Next": "Succesful"
-                },
-                {
-                  "Or": [
-                    {
-                      "Variable": "$.Stacks[0].StackStatus",
-                      "StringEquals": "ROLLBACK_COMPLETE"
-                    },
-                    {
-                      "Variable": "$.Stacks[0].StackStatus",
-                      "StringEquals": "CREATE_FAILED"
-                    },
-                    {
-                      "Variable": "$.Stacks[0].StackStatus",
-                      "StringEquals": "DELETE_FAILED"
-                    },
-                    {
-                      "Variable": "$.Stacks[0].StackStatus",
-                      "StringEquals": "ROLLBACK_FAILED"
-                    }
-                  ],
-                  "Next": "Delete Failed"
-                }
-              ],
-              "Default": "Wait 60 seconds Delete"
-            },
-            "Wait 60 seconds Delete": {
-              "Type": "Wait",
-              "Seconds": 60,
-              "Next": "Get Stack State Delete Stack"
-            },
-            "Succesful": {
-              "Type": "Pass",
-              "End": true,
-              "Result": {
-                "Result": "Failed"
-              }
-            },
-            "Delete Failed": {
-              "Type": "Pass",
-              "End": true,
-              "Result": {
-                "Result": "Failed"
-              }
-            }
-          }
-        }
-
-  StartStateMachineExecutionRole:
-    Type: "AWS::IAM::Role"
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: events.amazonaws.com
-            Action: "sts:AssumeRole"
-      Path: "/"
-      Policies:
-        - PolicyName: StartStateMachineExecutionRole
-          PolicyDocument:
-            Version: "2012-10-17"
-            Statement:
-              - Effect: Allow
-                Action:
-                  - "states:StartExecution"
-                Resource: "*"
-              - Effect: Allow
-                Action:
-                  - "logs:CreateLogStream"
-                  - "logs:CreateLogGroup"
-                  - "logs:PutLogEvents"
-                Resource: "*"
-
-  ScheduledCreationOfNewContainerImage:
-    Type: AWS::Events::Rule
-    Properties: 
-      Description: Will create a new container image every week
-      Name: ScheduledCreationOfNewContainerImage
-      RoleArn: !GetAtt [ StartStateMachineExecutionRole, Arn ]
-      ScheduleExpression: !Ref ScheduleExpression
-      State: ENABLED      
-      Targets: 
-        - Arn: !Ref StateMachineNewVersionDistrolessContainer
-          Id: "ScheduledCreationOfNewContainerImage"
-          RoleArn: !GetAtt [ StartStateMachineExecutionRole, Arn]
+      TemplateURL: !Sub "https://${S3BucketWithCloudFormationTemplates}.s3.amazonaws.com/DistrolessCloudFormationECR.yml"
 
