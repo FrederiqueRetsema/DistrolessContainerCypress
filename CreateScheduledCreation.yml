@@ -69,7 +69,25 @@ Parameters:
     Default: cron(0 0 ? * SUN *)
 
 Resources:
-  
+
+  DistrolessContainerStackLogGroupMessages:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /aws/ec2/DistrolessContainer/messages
+      RetentionInDays: 1
+
+  DistrolessContainerStackLogGroupCfnInitCmdLog:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /aws/ec2/DistrolessContainer/cfn-init-cmd.log
+      RetentionInDays: 1
+
+  DistrolessContainerStackLogGroupCloudInitOutputLog:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /aws/ec2/DistrolessContainer/cloud-init-output.log
+      RetentionInDays: 1
+
   StateMachineExecutionRole:
     Type: "AWS::IAM::Role"
     Properties:
@@ -82,7 +100,7 @@ Resources:
             Action: "sts:AssumeRole"
       Path: "/"
       Policies:
-        - PolicyName: CloudFormationSSMEC2
+        - PolicyName: CloudFormationSSMEC2Logs
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
@@ -127,6 +145,13 @@ Resources:
                   - "ec2:CreateTags"
                   - "ec2:DeleteTags"
                 Resource: "*"
+              - Effect: Allow
+                Action:
+                  - "logs:CreateLogStream"
+                  - "logs:CreateLogGroup"
+                  - "logs:PutLogEvents"
+                Resource: "*"
+
 
   StateMachineNewVersionDistrolessContainer:
     Type: AWS::StepFunctions::StateMachine
@@ -348,6 +373,12 @@ Resources:
                 Action:
                   - "states:StartExecution"
                 Resource: "*"
+              - Effect: Allow
+                Action:
+                  - "logs:CreateLogStream"
+                  - "logs:CreateLogGroup"
+                  - "logs:PutLogEvents"
+                Resource: "*"
 
   ScheduledCreationOfNewContainerImage:
     Type: AWS::Events::Rule
@@ -360,5 +391,5 @@ Resources:
       Targets: 
         - Arn: !Ref StateMachineNewVersionDistrolessContainer
           Id: "ScheduledCreationOfNewContainerImage"
-          RoleArn: !GetAtt [ StateMachineExecutionRole, Arn]
+          RoleArn: !GetAtt [ StartStateMachineExecutionRole, Arn]
 

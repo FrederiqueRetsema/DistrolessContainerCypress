@@ -18,7 +18,7 @@ aws cloudformation create-stack --stack-name CreateScheduledCreation `
             ParameterKey=S3BucketWithTestResults,ParameterValue="fra-testresults" `
             ParameterKey=S3BucketKeyPrefix,ParameterValue="distroless-container" `
             ParameterKey=S3BucketWithCloudFormationTemplates,ParameterValue="fra-euwest1" `
-            ParameterKey=CypressImage,ParameterValue="10.4.0" `
+            ParameterKey=CypressImage,ParameterValue="cypress/included:10.4.0" `
             ParameterKey=EC2KeyName,ParameterValue="EC2Key-fra-dev" `
             ParameterKey=ScheduleExpression,ParameterValue="cron(0/15 * ? * * *)" `
 --profile ${AWSProfile} 

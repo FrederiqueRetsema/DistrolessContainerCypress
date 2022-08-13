@@ -91,8 +91,7 @@ Resources:
       PolicyDocument:
         Version: "2012-10-17"
         Statement:
-          - 
-            Effect: "Allow"
+          - Effect: "Allow"
             Action:
               - 's3:ListBucket'
               - 's3:GetObject'
@@ -108,22 +107,25 @@ Resources:
                 - - 'arn:aws:s3:::'
                   - !Ref S3BucketWithTestResults
                   - /*
-          -
-            Effect: "Allow"
+          - Effect: "Allow"
             Action:
               - "ecr:ListImages"
             Resource: 
               - !Sub "arn:aws:ecr:${AWS::Region}:${AWS::AccountId}:repository/${ECRRepository}"
+          - Effect: Allow
+            Action:
+              - "logs:CreateLogStream"
+              - "logs:CreateLogGroup"
+              - "logs:PutLogEvents"
+            Resource: "*"
       Roles:
-        -
-          Ref: DistrolessContainerIAMRole
+        - Ref: DistrolessContainerIAMRole
   DistrolessContainerIAMInstanceProfile:
     Type: "AWS::IAM::InstanceProfile"
     Properties:
       Path: "/"
       Roles:
-        -
-          Ref: DistrolessContainerIAMRole
+        - Ref: DistrolessContainerIAMRole
 
   SecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -165,6 +167,107 @@ Resources:
       'AWS::CloudFormation::Init':
         config:
           files:
+            '/opt/aws/amazon-cloudwatch-agent/bin/config.json':
+              content: !Sub |
+                {
+                   "agent": {
+                      "metrics_collection_interval": 60,
+                      "run_as_user": "cwagent"
+                    },
+                    "logs": {
+                      "logs_collected": {
+                          "files": {
+                                  "collect_list": [
+                                          {
+                                                  "file_path": "/var/log/messages",
+                                                  "log_group_name": "/aws/ec2/DistrolessContainer/messages"
+                                          },
+                                          {
+                                                  "file_path": "/var/log/cloud-init-output.log",
+                                                  "log_group_name": "/aws/ec2/DistrolessContainer/cloud-init-output.log"
+                                          },
+                                          {
+                                                  "file_path": "/var/log/cfn-init-cmd.log",
+                                                  "log_group_name": "/aws/ec2/DistrolessContainer/cfn-init-cmd.log"
+                                          }
+                                  ]
+                            }
+                      }
+                    },
+                    "metrics": {
+                      "metrics_collected": {
+                          "disk": {
+                                  "measurement": [
+                                          "used_percent"
+                                  ],
+                                  "metrics_collection_interval": 60,
+                                  "resources": [
+                                          "*"
+                                  ]
+                          },
+                          "mem": {
+                                  "measurement": [
+                                          "mem_used_percent"
+                                  ],
+                                  "metrics_collection_interval": 60
+                          },
+                          "cpu": {
+                                  "measurement": [
+                                           "usage_active"
+                                  ],
+                                  "totalcpu": true,
+                                  "metrics_collection_interval": 60
+                          }
+                       }
+                     }
+                }
+
+            '/opt/distroless/00-install-and-run-cw-agent.sh':
+              content: |
+                #!/bin/bash
+                #
+                # Install the cloudwatch agent (see also: https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/download-cloudwatch-agent-commandline.html)
+                #
+                curl -O https://s3.amazonaws.com/amazoncloudwatch-agent/amazon_linux/amd64/latest/amazon-cloudwatch-agent.rpm
+                curl -O https://s3.amazonaws.com/amazoncloudwatch-agent/amazon_linux/amd64/latest/amazon-cloudwatch-agent.rpm.sig
+
+                # Check fingerprint
+                # - See: how to veryfy fingerprint: https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/verify-CloudWatch-Agent-Package-Signature.html
+                # 
+                curl -O https://s3.amazonaws.com/amazoncloudwatch-agent/assets/amazon-cloudwatch-agent.gpg
+                key=$(gpg --import amazon-cloudwatch-agent.gpg 2> >(grep key | awk '{print $3}' | awk -F":" '{print $1}'))
+                echo "Key = ${key}"
+
+                fingerprint=$(gpg --fingerprint $key | grep fingerprint | awk -F"=" '{print $2}' | xargs)
+                echo "Fingerprint = ${fingerprint}"
+                if (test "${fingerprint}" != "9376 16F3 450B 7D80 6CBD 9725 D581 6730 3B78 9C72")
+                then
+                  echo "Fingerprint is not equal to the fingerprint that we expected, stop"
+                  exit 1
+                fi
+
+                gpg_output=$(gpg --verify amazon-cloudwatch-agent.rpm.sig amazon-cloudwatch-agent.rpm 2> >(cat))
+                result_good_signature=$(echo $gpg_output | grep "Good signature")
+                result_from_Amazon_Cloudwatch_Agent=$(echo $result_good_signature | grep "Amazon CloudWatch Agent")
+                if (test -z "${result_from_Amazon_Cloudwatch_Agent}")
+                then
+                  echo "gpg output:"
+                  echo $gpg_output
+                  echo "Signature is not correct, stop"
+                  exit 1
+                fi
+
+                rpm -U ./amazon-cloudwatch-agent.rpm
+                /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -c file:/opt/aws/amazon-cloudwatch-agent/bin/config.json
+                /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a start 
+
+                chown root:cwagent /var/log/messages
+                chmod 640 /var/log/messages
+
+                chown root:cwagent /var/log/cloud-init-output.log
+                chmod 640 /var/log/cloud-init-output.log
+              mode: 000500
+
             '/opt/distroless/01-install.sh':
               content: |
                 #!/bin/bash
@@ -497,6 +600,9 @@ Resources:
               mode: 00500        
 
           commands:
+            00-install-and-run-cw-agent:
+              command: /opt/distroless/00-install-and-run-cw-agent.sh
+              ignoreErrors: true
             01-install:
               command: /opt/distroless/01-install.sh
               ignoreErrors: true
