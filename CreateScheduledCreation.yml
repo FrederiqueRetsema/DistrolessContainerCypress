@@ -40,7 +40,7 @@ Parameters:
     
   CypressImage:
     Type: String
-    Default: "cypress/included:10.3.0"
+    Default: "cypress/included:10.4.0"
   BaseDir:
     Type: String
     Default: "/opt/distroless/src"
@@ -182,6 +182,10 @@ Resources:
                   {
                     "ParameterKey": "S3BucketWithCloudFormationTemplates",
                     "ParameterValue": "${S3BucketWithCloudFormationTemplates}"
+                  },
+                  {
+                    "ParameterKey": "CypressImage",
+                    "ParameterValue": "${CypressImage}"
                   },
                   {
                     "ParameterKey": "EC2KeyName",

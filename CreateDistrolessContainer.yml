@@ -410,7 +410,7 @@ Resources:
                 }
 
                 get_files() {
-                  docker run -i -v "$BUILD_DIR":/build_dir "httpd:build"
+                  docker run -i -v "$BUILD_DIR":/build_dir "${ContainerName}:build"
                 }
 
                 create_tar_file() {
