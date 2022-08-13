@@ -1,0 +1,372 @@
+# CloudFormationECR
+# =================
+
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Create container registry
+
+Resources:
+
+  WordPressRepositoryReadOnly:
+    Type: AWS::ECR::Repository
+    Properties:
+      ImageScanningConfiguration: 
+        ScanOnPush: true
+      RepositoryName: wordpress-read-only
+      RepositoryPolicyText:
+        !Sub |
+          {
+            "Version": "2008-10-17",
+            "Statement": [
+              {
+                "Sid": "WordPressRepositoryReadOnly",
+                "Effect": "Allow",
+                "Principal": "*",
+                "Action": [
+                  "ecr:BatchCheckLayerAvailability",
+                  "ecr:BatchDeleteImage",
+                  "ecr:BatchGetImage",
+                  "ecr:CompleteLayerUpload",
+                  "ecr:DeleteLifecyclePolicy",
+                  "ecr:DeleteRepository",
+                  "ecr:DeleteRepositoryPolicy",
+                  "ecr:DescribeImages",
+                  "ecr:DescribeRepositories",
+                  "ecr:GetDownloadUrlForLayer",
+                  "ecr:GetLifecyclePolicy",
+                  "ecr:GetLifecyclePolicyPreview",
+                  "ecr:GetRepositoryPolicy",
+                  "ecr:InitiateLayerUpload",
+                  "ecr:ListImages",
+                  "ecr:PutImage",
+                  "ecr:PutLifecyclePolicy",
+                  "ecr:SetRepositoryPolicy",
+                  "ecr:StartLifecyclePolicyPreview",
+                  "ecr:UploadLayerPart"
+                ]
+              }
+            ]
+          }
+      LifecyclePolicy:
+        LifecyclePolicyText: |
+          {
+            "rules": [
+            {
+                "rulePriority": 1,
+                "description": "Keep images for 30 days",
+                "selection": {
+                  "tagStatus": "any",
+                  "countType": "sinceImagePushed",
+                  "countUnit": "days",
+                  "countNumber": 30
+                },
+                "action": {
+                  "type": "expire"
+                }
+            }]
+          }
+
+  WordPressRepositoryReadOnlyParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: "/wordpress/container/repository-read-only"
+      Type: String
+      Value: !Ref WordPressRepositoryReadOnly
+  WordPressRepositoryReadOnlyUriParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: "/wordpress/container/repository-read-only-uri"
+      Type: String
+      Value: !GetAtt WordPressRepositoryReadOnly.RepositoryUri
+
+  WordPressRepositoryWrite:
+    Type: AWS::ECR::Repository
+    Properties:
+      ImageScanningConfiguration: 
+        ScanOnPush: true
+      RepositoryName: wordpress-write
+      RepositoryPolicyText: !Sub |
+          {
+            "Version": "2008-10-17",
+            "Statement": [
+              {
+                "Sid": "new statement",
+                "Effect": "Allow",
+                "Principal": "*",
+                "Action": [
+                  "ecr:BatchCheckLayerAvailability",
+                  "ecr:BatchDeleteImage",
+                  "ecr:BatchGetImage",
+                  "ecr:CompleteLayerUpload",
+                  "ecr:DeleteLifecyclePolicy",
+                  "ecr:DeleteRepository",
+                  "ecr:DeleteRepositoryPolicy",
+                  "ecr:DescribeImages",
+                  "ecr:DescribeRepositories",
+                  "ecr:GetDownloadUrlForLayer",
+                  "ecr:GetLifecyclePolicy",
+                  "ecr:GetLifecyclePolicyPreview",
+                  "ecr:GetRepositoryPolicy",
+                  "ecr:InitiateLayerUpload",
+                  "ecr:ListImages",
+                  "ecr:PutImage",
+                  "ecr:PutLifecyclePolicy",
+                  "ecr:SetRepositoryPolicy",
+                  "ecr:StartLifecyclePolicyPreview",
+                  "ecr:UploadLayerPart"
+                ]
+              }
+            ]
+          }
+      LifecyclePolicy:
+        LifecyclePolicyText: |
+          {
+            "rules": [
+            {
+                "rulePriority": 1,
+                "description": "Keep images for 30 days",
+                "selection": {
+                  "tagStatus": "any",
+                  "countType": "sinceImagePushed",
+                  "countUnit": "days",
+                  "countNumber": 30
+                },
+                "action": {
+                  "type": "expire"
+                }
+            }]
+          }
+
+  WordPressRepositoryWriteParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: "/wordpress/container/repository-write"
+      Type: String
+      Value: !Ref WordPressRepositoryWrite
+  WordPressRepositoryWriteUriParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: "/wordpress/container/repository-write-uri"
+      Type: String
+      Value: !GetAtt WordPressRepositoryWrite.RepositoryUri
+
+  WordPressRepositoryAdmin:
+    Type: AWS::ECR::Repository
+    Properties:
+      ImageScanningConfiguration: 
+        ScanOnPush: true
+      RepositoryName: wordpress-admin
+      RepositoryPolicyText:
+        !Sub |
+          {
+            "Version": "2008-10-17",
+            "Statement": [
+              {
+                "Effect": "Allow",
+                "Principal": "*",
+                "Action": [
+                  "ecr:BatchCheckLayerAvailability",
+                  "ecr:BatchDeleteImage",
+                  "ecr:BatchGetImage",
+                  "ecr:CompleteLayerUpload",
+                  "ecr:DeleteLifecyclePolicy",
+                  "ecr:DeleteRepository",
+                  "ecr:DeleteRepositoryPolicy",
+                  "ecr:DescribeImages",
+                  "ecr:DescribeRepositories",
+                  "ecr:GetDownloadUrlForLayer",
+                  "ecr:GetLifecyclePolicy",
+                  "ecr:GetLifecyclePolicyPreview",
+                  "ecr:GetRepositoryPolicy",
+                  "ecr:InitiateLayerUpload",
+                  "ecr:ListImages",
+                  "ecr:PutImage",
+                  "ecr:PutLifecyclePolicy",
+                  "ecr:SetRepositoryPolicy",
+                  "ecr:StartLifecyclePolicyPreview",
+                  "ecr:UploadLayerPart"
+                ]
+              }
+            ]
+          }
+      LifecyclePolicy:
+        LifecyclePolicyText: |
+          {
+            "rules": [
+            {
+                "rulePriority": 1,
+                "description": "Keep images for 30 days",
+                "selection": {
+                  "tagStatus": "any",
+                  "countType": "sinceImagePushed",
+                  "countUnit": "days",
+                  "countNumber": 30
+                },
+                "action": {
+                  "type": "expire"
+                }
+            }]
+          }
+
+  WordPressRepositoryAdminParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: "/wordpress/container/repository-admin"
+      Type: String
+      Value: !Ref WordPressRepositoryAdmin
+  WordPressRepositoryAdminUriParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: "/wordpress/container/repository-admin-uri"
+      Type: String
+      Value: !GetAtt WordPressRepositoryAdmin.RepositoryUri
+
+  WordPressRepositoryCloudwatch:
+    Type: AWS::ECR::Repository
+    Properties:
+      ImageScanningConfiguration: 
+        ScanOnPush: true
+      RepositoryName: cloudwatch
+      LifecyclePolicy:
+        LifecyclePolicyText: |
+          {
+            "rules": [
+            {
+                "rulePriority": 1,
+                "description": "Keep images for 30 days",
+                "selection": {
+                  "tagStatus": "any",
+                  "countType": "sinceImagePushed",
+                  "countUnit": "days",
+                  "countNumber": 30
+                },
+                "action": {
+                  "type": "expire"
+                }
+            }]
+          }
+
+  WordPressRepositoryCloudwatchParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: "/wordpress/container/repository-cloudwatch"
+      Type: String
+      Value: !Ref WordPressRepositoryCloudwatch
+  WordPressRepositoryCloudwatchUriParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: "/wordpress/container/repository-cloudwatch-uri"
+      Type: String
+      Value: !GetAtt WordPressRepositoryCloudwatch.RepositoryUri
+
+  DeleteECRRepositoryExecutionRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Service:
+              - "lambda.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      Path: /
+  DeleteECRRepositoryExecutionRolePolicies:
+    DependsOn: DeleteECRRepositoryExecutionRole
+    Type: "AWS::IAM::Policy"
+    Properties:
+      PolicyName: "CloudwatchAndECR"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Effect: "Allow"
+            Action: 
+              - "logs:PutLogEvents"
+              - "logs:CreateLogStream"
+              - "logs:CreateLogGroup"
+            Resource: "*"
+          -
+            Effect: "Allow"
+            Action: 
+              - "ecr:DeleteRepository"
+            Resource:
+              - !Sub "arn:aws:ecr:${AWS::Region}:${AWS::AccountId}:repository/${WordPressRepositoryReadOnly}"
+              - !Sub "arn:aws:ecr:${AWS::Region}:${AWS::AccountId}:repository/${WordPressRepositoryWrite}"
+              - !Sub "arn:aws:ecr:${AWS::Region}:${AWS::AccountId}:repository/${WordPressRepositoryAdmin}"
+              - !Sub "arn:aws:ecr:${AWS::Region}:${AWS::AccountId}:repository/${WordPressRepositoryCloudwatch}"
+              
+      Roles:
+        -
+          Ref: "DeleteECRRepositoryExecutionRole"       
+  DeleteECRRepositoryFunction:
+    DependsOn: 
+    - DeleteECRRepositoryExecutionRole
+    - DeleteECRRepositoryExecutionRolePolicies
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.lambda_handler
+      Role: !GetAtt DeleteECRRepositoryExecutionRole.Arn
+      Timeout: 60
+      Code:
+        ZipFile: |
+          #!/usr/bin/env python
+          # -*- coding: utf-8 -*-
+          # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/cfn-lambda-function-code-cfnresponsemodule.html
+
+          import json
+          import cfnresponse
+          import boto3
+
+          def lambda_handler(event, context):
+            try:
+                ecr_repository_read_only  = event['ResourceProperties']['ECRRepositoryReadOnly']
+                ecr_repository_write      = event['ResourceProperties']['ECRRepositoryWrite']
+                ecr_repository_admin      = event['ResourceProperties']['ECRRepositoryAdmin']
+                ecr_repository_cloudwatch = event['ResourceProperties']['ECRRepositoryCloudwatch']
+                print(event)
+
+                if event['RequestType'] == 'Delete':
+                  ecr = boto3.client('ecr')
+
+                  ecr.delete_repository(
+                    repositoryName = ecr_repository_read_only,
+                    force = True
+                  )
+
+                  ecr.delete_repository(
+                    repositoryName = ecr_repository_write,
+                    force = True
+                  )
+
+                  ecr.delete_repository(
+                    repositoryName = ecr_repository_admin,
+                    force = True
+                  )
+
+                  ecr.delete_repository(
+                    repositoryName = ecr_repository_cloudwatch,
+                    force = True
+                  )
+
+                print("TRACE Before SUCCESS")
+                responseData = {}
+                cfnresponse.send(event, context, cfnresponse.SUCCESS, responseData, "CustomResourcePhysicalID")
+            except Exception as e:
+                print(e)
+                print("TRACE Before FAILED")
+                responseData = {}
+                cfnresponse.send(event, context, cfnresponse.FAILED, responseData, "CustomResourcePhysicalID")
+
+            return
+      Runtime: python3.8  
+
+  ExecuteDeleteECRRepositoryFunction:
+    Type: Custom::ExecuteDeleteECRRepositoryFunction
+    Properties:
+      ECRRepositoryReadOnly   : !Ref WordPressRepositoryReadOnly
+      ECRRepositoryWrite      : !Ref WordPressRepositoryWrite
+      ECRRepositoryAdmin      : !Ref WordPressRepositoryAdmin
+      ECRRepositoryCloudwatch : !Ref WordPressRepositoryCloudwatch
+      ServiceToken            : !GetAtt DeleteECRRepositoryFunction.Arn
+ 

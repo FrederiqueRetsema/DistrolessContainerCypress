@@ -1,0 +1,122 @@
+# CloudFormationDatabaseEFS
+# -------------------------
+
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Create EFS file system
+
+Parameters:
+  WordPressVpcWrite:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /wordpress/network/vpc-write
+
+  PrivateSubnetReadOnlyAZaId:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /wordpress/network/private-subnet-read-only-aza
+  PrivateSubnetReadOnlyAZbId:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /wordpress/network/private-subnet-read-only-azb
+
+  EFSMountPointSecurityGroup: 
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /wordpress/network/sg/efs-mount-point-security-group
+
+Resources:
+
+  # ================================================================================================================================================================
+  # EFS Filesystem and mount points
+  # ================================================================================================================================================================
+  WordPressEFS:
+    Type: AWS::EFS::FileSystem
+    Properties:
+      BackupPolicy:
+        Status: ENABLED
+      Encrypted: False
+      FileSystemTags:
+        - Key: Name
+          Value: WordPressFileSystem
+      FileSystemPolicy:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Action:
+              - "*"
+            Principal:
+                AWS: "*"
+
+  WordPressMountTargetReadOnlyAZa:
+    Type: AWS::EFS::MountTarget
+    Properties:
+      FileSystemId: !Ref WordPressEFS
+      SubnetId: !Ref PrivateSubnetReadOnlyAZaId
+      SecurityGroups:
+        - !Ref EFSMountPointSecurityGroup
+  WordPressMountTargetReadOnlyAZb:
+    Type: AWS::EFS::MountTarget
+    Properties:
+      FileSystemId: !Ref WordPressEFS
+      SubnetId: !Ref PrivateSubnetReadOnlyAZbId
+      SecurityGroups:
+        - !Ref EFSMountPointSecurityGroup
+
+  WordPressMountTargetReadOnlyIPAddressAZa:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: "/wordpress/network/efs-ip-addr-aza"
+      Type: String
+      Value: !GetAtt WordPressMountTargetReadOnlyAZa.IpAddress
+  WordPressMountTargetReadOnlyIPAddressAZb:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: "/wordpress/network/efs-ip-addr-azb"
+      Type: String
+      Value: !GetAtt WordPressMountTargetReadOnlyAZb.IpAddress
+  
+  WordPressEFSParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: "/wordpress/container/efs-fs-id"
+      Type: String
+      Value: !Ref WordPressEFS
+  WordPressEFSARNParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: "/wordpress/efs-fs-arn"
+      Type: String
+      Value: !GetAtt WordPressEFS.Arn
+
+  EFSDomain:
+    DependsOn:
+      - WordPressMountTargetReadOnlyAZa
+      - WordPressMountTargetReadOnlyAZb
+    Type: AWS::Route53::HostedZone
+    Properties:
+      HostedZoneConfig:
+      Name: !Sub "${WordPressEFS}.efs.${AWS::Region}.amazonaws.com."
+      HostedZoneConfig:
+        Comment: Route EFS traffic from the WordPressWrite VPC to the WordPressReadOnly VPC 
+      VPCs: 
+        - VPCId: !Ref WordPressVpcWrite
+          VPCRegion: !Sub "${AWS::Region}"
+  EFSRoute53RecordAZa:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      Name: !Sub "${WordPressEFS}.efs.${AWS::Region}.amazonaws.com."
+      SetIdentifier: "AZa"
+      HostedZoneId: !Ref EFSDomain  
+      Type: A
+      Weight: 50
+      ResourceRecords: 
+        - !GetAtt WordPressMountTargetReadOnlyAZa.IpAddress
+      TTL: 300
+  EFSRoute53RecordAZb:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      Name: !Sub "${WordPressEFS}.efs.${AWS::Region}.amazonaws.com."
+      SetIdentifier: "AZb"
+      HostedZoneId: !Ref EFSDomain  
+      Type: A
+      Weight: 50
+      ResourceRecords: 
+        - !GetAtt WordPressMountTargetReadOnlyAZb.IpAddress
+      TTL: 300
+

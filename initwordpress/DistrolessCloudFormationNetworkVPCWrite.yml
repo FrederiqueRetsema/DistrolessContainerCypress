@@ -1,0 +1,91 @@
+# CloudFormationNetworkVPCWrite.yml
+# =================================
+
+AWSTemplateFormatVersion: "2010-09-09"
+Description: CloudFormation template for VPC Write
+
+Resources:
+
+  WordPressVpcWrite:
+    Type: AWS::EC2::VPC
+    Properties: 
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      InstanceTenancy: default
+      Tags:
+        - Key: Name
+          Value: WordPressNetwork
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+  InternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref WordPressVpcWrite
+
+  PublicSubnetWriteAZa:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Join ["", [!Ref "AWS::Region", "a"]]
+      CidrBlock: 10.0.0.0/24
+      MapPublicIpOnLaunch: true
+      VpcId: !Ref WordPressVpcWrite
+      Tags:
+        - Key: Name
+          Value: PublicSubnetWriteAZa
+  PublicSubnetWriteAZaRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTableWrite
+      SubnetId: !Ref PublicSubnetWriteAZa
+  PublicSubnetWriteAZb:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Join ["", [!Ref "AWS::Region", "b"]]
+      CidrBlock: 10.0.1.0/24
+      MapPublicIpOnLaunch: false
+      VpcId: !Ref WordPressVpcWrite
+      Tags:
+        - Key: Name
+          Value: PublicSubnetWriteAZb
+
+  PublicSubnetWriteAZbRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTableWrite
+      SubnetId: !Ref PublicSubnetWriteAZb
+
+  NACLPublicWrite:
+    Type: AWS::EC2::NetworkAcl
+    Properties:
+      Tags:
+        - Key: Name
+          Value: NACLPublicWrite
+      VpcId: !Ref WordPressVpcWrite
+
+  NACLPublicWriteIngressHTTP:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      CidrBlock: 0.0.0.0/0
+      Egress: False
+      RuleNumber: 100
+      RuleAction: allow
+      NetworkAclId: !Ref NACLPublicWrite
+      PortRange: 
+        From: 8080
+        To: 8080
+      Protocol: 6
+
+  SubnetNACLAssociationPublicSubnetWriteAZa:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Properties:
+      NetworkAclId: !Ref NACLPublicWrite
+      SubnetId: !Ref PublicSubnetWriteAZa
+
+  SubnetNACLAssociationPublicSubnetWriteAZb:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Properties:
+      NetworkAclId: !Ref NACLPublicWrite
+      SubnetId: !Ref PublicSubnetWriteAZb

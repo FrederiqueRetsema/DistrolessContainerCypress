@@ -1,0 +1,136 @@
+# CloudFormationDatabase
+# ----------------------
+
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Create an Aurora serverless Database (MySQL)
+
+Parameters:
+
+  AutoPauseEnabled:
+    Description: Allow or disallow automatic pause when the database isn't used
+    Type: String
+    AllowedValues:
+      - true
+      - false
+    Default: true
+  SecondsUntilAutoPause:
+    Description: The time, in seconds, before an Aurora DB Cluster in serverless mode is auto paused (300-86400). For production, you might want to have a value > 300 or disable AutoPause
+    Type: Number
+    Default: 300
+  DeletionProtection:
+    Description: Protect deletion of the database
+    Type: String
+    AllowedValues:
+      - true
+      - false
+    Default: true
+  EnableHttpEndpoint: 
+    Description: Enable HTTP endpoint to make it possible to use the query editor in the RDS console 
+    Type: String
+    AllowedValues:
+      - true
+      - false
+    Default: true
+
+  PrivateSubnetReadOnlyAZaId:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /wordpress/network/private-subnet-read-only-aza
+  PrivateSubnetWriteAZaId:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /wordpress/network/private-subnet-write-aza
+  PrivateSubnetReadOnlyAZbId:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /wordpress/network/private-subnet-read-only-azb
+  PrivateSubnetWriteAZbId:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /wordpress/network/private-subnet-write-azb
+
+  WordPressDBSecurityGroup: 
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /wordpress/network/sg/database-security-group
+
+  DatabaseClusterIdentifier: 
+    Description: Database cluster identifier
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /wordpress/database/database-cluster-identifier
+  DatabaseName: 
+    Description: DatabaseName
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /wordpress/database/database-name
+  TablePrefix:
+    Description: Table prefix
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /wordpress/database/table-prefix
+
+  AdminUserName: 
+    Description: User name for the Admin user
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /wordpress/firstinit/database-admin-username
+  AdminPassword: 
+    Description: Password for the Admin user
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /wordpress/firstinit/database-admin-password
+    NoEcho: true
+
+Resources:
+
+  FirstInitParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: "/wordpress/firstinit/firstinit"
+      Type: String
+      Value: "True"
+
+  WordPressDatabaseSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: WordPress Subnet Group
+      DBSubnetGroupName: wordpresssubnetgroup
+      SubnetIds:
+        - !Ref PrivateSubnetReadOnlyAZaId
+        - !Ref PrivateSubnetReadOnlyAZbId
+
+  WordPressDatabaseClusterParameterGroup:
+    Type: AWS::RDS::DBClusterParameterGroup
+    Properties:
+      Description: WordPress Parameter Group - add auditing
+      Family: aurora-mysql5.7
+      Parameters:
+        server_audit_events: CONNECT,QUERY,QUERY_DCL,QUERY_DDL,QUERY_DML,TABLE
+        server_audit_logging: 1
+        server_audit_logs_upload: 1             # Uploads logs to CloudWatch
+
+  WordPressDatabaseCluster:
+    Type: AWS::RDS::DBCluster
+    DeletionPolicy: Delete          # Cannot be a parameter, unfortunately...
+    Properties:
+      DatabaseName: !Ref DatabaseName
+      DBClusterIdentifier: !Ref DatabaseClusterIdentifier
+      DBClusterParameterGroupName: !Ref WordPressDatabaseClusterParameterGroup
+      DBSubnetGroupName: !Ref WordPressDatabaseSubnetGroup
+      DeletionProtection: !Ref DeletionProtection
+      EnableHttpEndpoint: !Ref EnableHttpEndpoint
+      Engine: aurora-mysql
+      EngineMode: serverless
+      MasterUsername: !Ref AdminUserName
+      MasterUserPassword: !Ref AdminPassword
+      ScalingConfiguration:
+        AutoPause: !Ref AutoPauseEnabled
+        MinCapacity: 1
+        MaxCapacity: 64
+        SecondsUntilAutoPause: !Ref SecondsUntilAutoPause  
+      VpcSecurityGroupIds:
+        - !Ref WordPressDBSecurityGroup
+
+  WordPressDBServerEndpointParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: "/wordpress/database/database-server-endpoint"
+      Type: String
+      Value: !GetAtt ["WordPressDatabaseCluster", "Endpoint.Address"]
+  WordPressDBClusterArnParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: "/wordpress/database/database-arn"
+      Type: String
+      Value: !Sub "arn:aws:rds:${AWS::Region}:${AWS::AccountId}:cluster:${WordPressDatabaseCluster}"
