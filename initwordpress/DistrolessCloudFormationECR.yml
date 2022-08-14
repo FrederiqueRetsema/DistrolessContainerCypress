@@ -11,7 +11,7 @@ Resources:
     Properties:
       ImageScanningConfiguration: 
         ScanOnPush: true
-      RepositoryName: wordpress-read-only
+      RepositoryName: wordpress-distroless
       RepositoryPolicyText:
         !Sub |
           {
@@ -149,3 +149,7 @@ Resources:
     Properties:
       ServiceToken: !GetAtt DeleteECRRepositoryFunction.Arn
       WordPressDistrolessRepository: !Ref WordPressDistrolessRepository
+
+Outputs:
+  RepositoryUri:
+    Value: WordPressDistrolessRepository.RepositoryUri

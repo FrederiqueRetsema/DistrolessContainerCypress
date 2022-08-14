@@ -58,8 +58,7 @@ Parameters:
     Default: EC2Key
   AmazonLinux2AMI: 
     Description: Amazon Linux AMI
-    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
-    Default: /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-ebs
+    Type: String
   CreateNewDistrolessContainerStackName:
     Type: String
     Default: CreateDistrolessContainer
@@ -69,24 +68,6 @@ Parameters:
     Default: cron(0 0 ? * SUN *)
 
 Resources:
-
-  DistrolessContainerStackLogGroupMessages:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: /aws/ec2/DistrolessContainer/messages
-      RetentionInDays: 1
-
-  DistrolessContainerStackLogGroupCfnInitCmdLog:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: /aws/ec2/DistrolessContainer/cfn-init-cmd.log
-      RetentionInDays: 1
-
-  DistrolessContainerStackLogGroupCloudInitOutputLog:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: /aws/ec2/DistrolessContainer/cloud-init-output.log
-      RetentionInDays: 1
 
   StateMachineExecutionRole:
     Type: "AWS::IAM::Role"

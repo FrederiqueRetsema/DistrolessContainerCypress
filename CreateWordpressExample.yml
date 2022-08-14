@@ -40,6 +40,12 @@ Parameters:
     Description: "format bucket-with-cloudformation-templates"
     Type: String
     Default: fra-euwest1
+  S3BucketWithTestResults:
+    Description: "format bucket-with-test-results"
+    Type: String
+  S3BucketKeyPrefix:
+    Description: "format first-dir/second-dir"
+    Type: String
 
   ScheduleExpression:
     Type: String
@@ -78,3 +84,22 @@ Resources:
     Properties:
       TemplateURL: !Sub "https://${S3BucketWithCloudFormationTemplates}.s3.amazonaws.com/DistrolessCloudFormationECR.yml"
 
+  CreateScheduledCreation:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub "https://${S3BucketWithCloudFormationTemplates}.s3.amazonaws.com/CreateScheduledCreation.yml"
+      Parameters:
+        DownloadCommands: 'git clone https://github.com/FrederiqueRetsema/DistrolessContainerCypress; git checkout wordpress'
+        VpcId: !GetAtt  WordpressNetwork.Outputs.WordPressVpcId
+        SubnetId: !GetAtt WordpressNetwork.Outputs.SubnetAZa
+        ContainerName: 'wordpress-distroless'
+        ContainerTag: '0.1'
+        ECRRepository: !GetAtt WordpressECR.Outputs.RepositoryUri
+        S3BucketWithTestResults: !Ref S3BucketWithTestResults
+        S3BucketKeyPrefix: !Ref S3BucketKeyPrefix 
+        S3BucketWithCloudFormationTemplates: !Ref S3BucketWithCloudFormationTemplates
+        CypressImage: !Ref CypressImage
+        EC2KeyName: !Ref EC2KeyName
+        EC2InstanceType: !Ref EC2InstanceType        
+        AmazonLinux2AMI: !Ref AmazonLinux2AMI
+        ScheduleExpression: !Ref ScheduleExpression
