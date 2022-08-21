@@ -24,15 +24,7 @@ Parameters:
     Description: Tag of this container image
     Type: String
 
-  DatabaseEndpoint:
-    Type: String
-  DatabaseName:
-    Type: String
   DatabasePrefix:
-    Type: String
-  DatabaseUserId:
-    Type: String
-  DatabasePassword:
     Type: String
   WordpressUserId:
     Type: String
@@ -53,8 +45,6 @@ Parameters:
     Type: String
   S3BucketWithCloudFormationTemplates:
     Description: "format bucket-with-cloudformation-templates"
-    Type: String
-  DatabaseEndpoint: 
     Type: String
     
   CypressImage:
@@ -193,24 +183,8 @@ Resources:
                     "ParameterValue": "${ContainerTag}"
                   },
                   {
-                    "ParameterKey": "DatabaseEndpoint",
-                    "ParameterValue": "${DatabaseEndpoint}"
-                  },
-                  {
-                    "ParameterKey": "DatabaseName",
-                    "ParameterValue": "${DatabaseName}"
-                  },
-                  {
                     "ParameterKey": "DatabasePrefix",
                     "ParameterValue": "${DatabasePrefix}"
-                  },
-                  {
-                    "ParameterKey": "DatabaseUserId",
-                    "ParameterValue": "${DatabaseUserId}"
-                  },
-                  {
-                    "ParameterKey": "DatabasePassword",
-                    "ParameterValue": "${DatabasePassword}"
                   },
                   {
                     "ParameterKey": "WordpressUserId",

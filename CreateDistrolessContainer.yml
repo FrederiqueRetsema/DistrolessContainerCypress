@@ -26,14 +26,18 @@ Parameters:
 
   DatabaseEndpoint:
     Type: String
+    Default: "/wordpress-distroless/database-endpoint"
   DatabaseName:
-    Type: String
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: "/wordpress-distroless/database-name"
   DatabasePrefix:
     Type: String
   DatabaseUserId:
     Type: String
+    Default: "/wordpress-distroless/database-user-id"
   DatabasePassword:
     Type: String
+    Default: "/wordpress-distroless/database-password"
   WordpressUserId:
     Type: String
   WordpressPassword:

@@ -66,6 +66,25 @@ Resources:
       Type: String
       Value: "True"
 
+  DatabaseNameParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: "/wordpress-distroless/database-name"
+      Type: String
+      Value: !Ref DatabaseName
+  DatabaseUserIdParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: "/wordpress-distroless/database-user-id"
+      Type: String
+      Value: !Ref DatabaseUserId
+  DatabasePasswordParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: "/wordpress-distroless/database-password"
+      Type: String
+      Value: !Ref DatabasePassword
+
   DatabaseSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -124,8 +143,9 @@ Resources:
       VpcSecurityGroupIds:
         - !Ref DatabaseSecurityGroup
 
-Outputs:
-  WordpressDBServerEndpoint:
-    Value: !GetAtt ["WordpressDatabaseCluster", "Endpoint.Address"]
-  WordpressDBClusterArn:
-    Value: !Sub "arn:aws:rds:${AWS::Region}:${AWS::AccountId}:cluster:${WordpressDatabaseCluster}"
+  DatabaseEndpoint:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: "/wordpress-distroless/database-endpoint"
+      Type: String
+      Value: !GetAtt ["WordpressDatabaseCluster", "Endpoint.Address"]

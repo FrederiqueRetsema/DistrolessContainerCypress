@@ -15,11 +15,11 @@ aws cloudformation create-stack --stack-name CreateScheduledCreation `
             ParameterKey=ContainerName,ParameterValue="distroless-container" `
             ParameterKey=ContainerTag,ParameterValue="0.0.1" `
             ParameterKey=DatabaseEndpoint,ParameterValue="" `
-            ParameterKey=DatabaseName,ParameterKey="wordpress" `
-            ParameterKey=DatabaseUserId,ParameterKey="database_admin" `
-            ParameterKey=DatabasePassword,ParameterKey="C1nder3llaInW0rdpre$$!" `
-            ParameterKey=WordpressUserId,ParameterKey="TestUser" `
-            ParameterKey=WordpressPassword,ParameterKey="C1nder3llaInW0rdpre$$!" `
+            ParameterKey=DatabaseName,ParameterValue="wordpress" `
+            ParameterKey=DatabaseUserId,ParameterValue="database_admin" `
+            ParameterKey=DatabasePassword,ParameterValue="C1nder3llaInW0rdpre$$!" `
+            ParameterKey=WordpressUserId,ParameterValue="TestUser" `
+            ParameterKey=WordpressPassword,ParameterValue="C1nder3llaInW0rdpre$$!" `
             ParameterKey=ECRRepository,ParameterValue="040909972200.dkr.ecr.eu-west-1.amazonaws.com/distroless-container" `
             ParameterKey=S3BucketWithTestResults,ParameterValue="fra-testresults" `
             ParameterKey=S3BucketKeyPrefix,ParameterValue="distroless-container" `

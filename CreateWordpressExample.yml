@@ -110,11 +110,7 @@ Resources:
         SubnetId: !GetAtt WordpressNetwork.Outputs.SubnetAZa
         ContainerName: 'wordpress-distroless'
         ContainerTag: '0.1'
-        DatabaseEndpoint: !GetAtt WordpressDatabase.Outputs.WordpressDBServerEndpoint
-        DatabaseName: !Ref DatabaseName
         DatabasePrefix: !Ref DatabasePrefix
-        DatabaseUserId: !Ref DatabaseUserId
-        DatabasePassword: !Ref DatabasePassword
         WordpressUserId: !Ref WordpressUserId
         WordpressPassword: !Ref WordpressPassword
         WordpressEFSId: !GetAtt WordpressEFS.Outputs.WordpressEFSId
