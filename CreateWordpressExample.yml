@@ -2,14 +2,14 @@
 # ======================
 
 AWSTemplateFormatVersion: "2010-09-09"
-Description: Create example based on WordPress (complete example including network etc)
+Description: Create example based on Wordpress (complete example including network etc)
 
 Parameters:
 
   DownloadCommands:
     Description: Commands to get the repository to the EC2
     Type: String
-    Default: "git clone https://github.com/FrederiqueRetsema/DistrolessContainerCypress; git checkout wordpress"
+    Default: "git clone https://github.com/FrederiqueRetsema/DistrolessContainerCypress; git checkout Wordpress"
 
   CypressImage:
     Type: String
@@ -63,7 +63,7 @@ Resources:
     Properties:
       TemplateURL: !Sub "https://${S3BucketWithCloudFormationTemplates}.s3.amazonaws.com/DistrolessCloudFormationDatabase.yml"
       Parameters:
-        WordPressVpcId: !GetAtt  WordpressNetwork.Outputs.WordPressVpcId
+        WordpressVpcId: !GetAtt  WordpressNetwork.Outputs.WordpressVpcId
         SubnetAZaId: !GetAtt WordpressNetwork.Outputs.SubnetAZa
         SubnetAZbId: !GetAtt WordpressNetwork.Outputs.SubnetAZb
 
@@ -72,7 +72,7 @@ Resources:
     Properties:
       TemplateURL: !Sub "https://${S3BucketWithCloudFormationTemplates}.s3.amazonaws.com/DistrolessCloudFormationEFS.yml"
       Parameters:
-        WordPressVpcId: !GetAtt  WordpressNetwork.Outputs.WordPressVpcId
+        WordpressVpcId: !GetAtt  WordpressNetwork.Outputs.WordpressVpcId
         SubnetAZaId: !GetAtt WordpressNetwork.Outputs.SubnetAZa
         SubnetAZbId: !GetAtt WordpressNetwork.Outputs.SubnetAZb
         EC2InstanceType: !Ref EC2InstanceType        
@@ -90,10 +90,12 @@ Resources:
       TemplateURL: !Sub "https://${S3BucketWithCloudFormationTemplates}.s3.amazonaws.com/CreateScheduledCreation.yml"
       Parameters:
         DownloadCommands: 'git clone https://github.com/FrederiqueRetsema/DistrolessContainerCypress; git checkout wordpress'
-        VpcId: !GetAtt  WordpressNetwork.Outputs.WordPressVpcId
+        VpcId: !GetAtt  WordpressNetwork.Outputs.WordpressVpcId
         SubnetId: !GetAtt WordpressNetwork.Outputs.SubnetAZa
         ContainerName: 'wordpress-distroless'
         ContainerTag: '0.1'
+        DatabaseEndpoint: !GetAtt WordpressDatabase.Outputs.WordpressDBServerEndpoint
+        WordpressEFSId: !GetAtt WordpressEFS.Outputs.WordpressEFSId
         ECRRepository: !GetAtt WordpressECR.Outputs.RepositoryUri
         S3BucketWithTestResults: !Ref S3BucketWithTestResults
         S3BucketKeyPrefix: !Ref S3BucketKeyPrefix 

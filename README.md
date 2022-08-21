@@ -112,4 +112,12 @@ You can use the CreateScheduledCreation CloudFormation template.
 You will have to change the Cypress version number in the file e2e/package.json a few times per year, unfortunately Cypress doesn't use the *latest* tag. You can find the version list of the container cypress/included via Docker hub: https://hub.docker.com/r/cypress/included/tags
 
 ## Falling back to a previous version of the container
-You can retag a container based on the date-tag. See for more information on retagging: https://docs.aws.amazon.com/AmazonECR/latest/userguide/image-retag.html
+You can retag a container based on the date-tag. See for more information on retagging: https://docs.aws.amazon.com/AmazonECR/latest/userguide/image-retag.html . When you want to fall back on a previous version of the container, tag the one-but-latest version of the container with the tag "latest" and then remove the newest version of the container image. Then restart the task or service in the cluster.
+
+# Wordpress example
+
+## Upload yaml files to S3
+You have two options to use the WordPress example: you can just enroll everything, then you will use my S3 container under the hood. When you want to upload the yaml files to your own S3 bucket first then you can use the upload_to_s3.ps1 function and change it as you like. 
+
+
+

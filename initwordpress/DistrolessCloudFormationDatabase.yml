@@ -32,7 +32,7 @@ Parameters:
       - false
     Default: true
 
-  WordPressVpcId:
+  WordpressVpcId:
     Type: String
 
   SubnetAZaId:
@@ -47,7 +47,7 @@ Parameters:
   DatabaseName: 
     Description: DatabaseName
     Type: String
-    Default: wordpress
+    Default: Wordpress
   TablePrefix:
     Description: Table prefix
     Type: String
@@ -65,12 +65,19 @@ Parameters:
 
 Resources:
 
+  FirstInitParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: "/wordpress-distroless/firstinit"
+      Type: String
+      Value: "True"
+
   DatabaseSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupName: DatabaseSecurityGroup
       GroupDescription: Write Securitygroup for the database
-      VpcId: !Ref WordPressVpcId
+      VpcId: !Ref WordpressVpcId
 
   DatabaseSecurityGroupIngressReadOnly:
     Type: AWS::EC2::SecurityGroupIngress
@@ -82,33 +89,33 @@ Resources:
       ToPort: 3306
       IpProtocol: TCP
 
-  WordPressDatabaseSubnetGroup:
+  WordpressDatabaseSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
     Properties:
-      DBSubnetGroupDescription: WordPress Subnet Group
+      DBSubnetGroupDescription: Wordpress Subnet Group
       DBSubnetGroupName: wordpresssubnetgroup
       SubnetIds:
         - !Ref SubnetAZaId
         - !Ref SubnetAZbId
 
-  WordPressDatabaseClusterParameterGroup:
+  WordpressDatabaseClusterParameterGroup:
     Type: AWS::RDS::DBClusterParameterGroup
     Properties:
-      Description: WordPress Parameter Group - add auditing
+      Description: Wordpress Parameter Group - add auditing
       Family: aurora-mysql5.7
       Parameters:
         server_audit_events: CONNECT,QUERY,QUERY_DCL,QUERY_DDL,QUERY_DML,TABLE
         server_audit_logging: 1
         server_audit_logs_upload: 1
 
-  WordPressDatabaseCluster:
+  WordpressDatabaseCluster:
     Type: AWS::RDS::DBCluster
     DeletionPolicy: Delete
     Properties:
       DatabaseName: !Ref DatabaseName
       DBClusterIdentifier: !Ref DatabaseClusterIdentifier
-      DBClusterParameterGroupName: !Ref WordPressDatabaseClusterParameterGroup
-      DBSubnetGroupName: !Ref WordPressDatabaseSubnetGroup
+      DBClusterParameterGroupName: !Ref WordpressDatabaseClusterParameterGroup
+      DBSubnetGroupName: !Ref WordpressDatabaseSubnetGroup
       DeletionProtection: !Ref DeletionProtection
       EnableHttpEndpoint: !Ref EnableHttpEndpoint
       Engine: aurora-mysql
@@ -124,7 +131,7 @@ Resources:
         - !Ref DatabaseSecurityGroup
 
 Outputs:
-  WordPressDBServerEndpoint:
-    Value: !GetAtt ["WordPressDatabaseCluster", "Endpoint.Address"]
-  WordPressDBClusterArn:
-    Value: !Sub "arn:aws:rds:${AWS::Region}:${AWS::AccountId}:cluster:${WordPressDatabaseCluster}"
+  WordpressDBServerEndpoint:
+    Value: !GetAtt ["WordpressDatabaseCluster", "Endpoint.Address"]
+  WordpressDBClusterArn:
+    Value: !Sub "arn:aws:rds:${AWS::Region}:${AWS::AccountId}:cluster:${WordpressDatabaseCluster}"

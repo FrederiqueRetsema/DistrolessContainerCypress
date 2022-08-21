@@ -5,7 +5,7 @@ AWSTemplateFormatVersion: "2010-09-09"
 Description: Create EFS file system
 
 Parameters:
-  WordPressVpcId:
+  WordpressVpcId:
     Type: String
 
   SubnetAZaId:
@@ -28,7 +28,7 @@ Resources:
     Properties:
       GroupName: EFSMountPointSecurityGroup
       GroupDescription: Securitygroup for EFS mount points
-      VpcId: !Ref WordPressVpcId
+      VpcId: !Ref WordpressVpcId
 
   EFSMountPointSecurityGroupIngressReadOnly:
     Type: AWS::EC2::SecurityGroupIngress
@@ -40,7 +40,7 @@ Resources:
       ToPort: 2049
       IpProtocol: TCP
 
-  WordPressEFS:
+  WordpressEFS:
     Type: AWS::EFS::FileSystem
     Properties:
       BackupPolicy:
@@ -48,7 +48,7 @@ Resources:
       Encrypted: False
       FileSystemTags:
         - Key: Name
-          Value: WordPressFileSystem
+          Value: WordpressFileSystem
       FileSystemPolicy:
         Version: "2012-10-17"
         Statement:
@@ -58,17 +58,17 @@ Resources:
             Principal:
                 AWS: "*"
 
-  WordPressMountTargetAZa:
+  WordpressMountTargetAZa:
     Type: AWS::EFS::MountTarget
     Properties:
-      FileSystemId: !Ref WordPressEFS
+      FileSystemId: !Ref WordpressEFS
       SubnetId: !Ref SubnetAZaId
       SecurityGroups:
         - !Ref EFSMountPointSecurityGroup
-  WordPressMountTargetAZb:
+  WordpressMountTargetAZb:
     Type: AWS::EFS::MountTarget
     Properties:
-      FileSystemId: !Ref WordPressEFS
+      FileSystemId: !Ref WordpressEFS
       SubnetId: !Ref SubnetAZbId
       SecurityGroups:
         - !Ref EFSMountPointSecurityGroup
@@ -133,7 +133,7 @@ Resources:
             Action: 
               - "elasticfilesystem:ClientRootAccess"
             Resource: 
-              - !Sub "arn:aws:elasticfilesystem:${AWS::Region}:${AWS::AccountId}:file-system/${WordPressEFS}"
+              - !Sub "arn:aws:elasticfilesystem:${AWS::Region}:${AWS::AccountId}:file-system/${WordpressEFS}"
       Roles:
         -
           Ref: "EC2EFSIAMRole"
@@ -150,7 +150,7 @@ Resources:
     Properties:
       GroupName: EC2EFSSecurityGroup
       GroupDescription: Securitygroup for EC2EFS
-      VpcId: !Ref WordPressVpcId
+      VpcId: !Ref WordpressVpcId
 
   EC2EFSSecurityGroupIngressSSH:
     Type: AWS::EC2::SecurityGroupIngress
@@ -225,7 +225,7 @@ Resources:
                        }
                      }
                 }
-            '/opt/wordpress/01-install-and-run-cw-agent.sh':
+            '/opt/Wordpress/01-install-and-run-cw-agent.sh':
               content: |
                 #!/bin/bash
                 #
@@ -271,7 +271,7 @@ Resources:
                 chmod 640 /var/log/cloud-init-output.log
               mode: 000500
 
-            '/opt/wordpress/02-update-aws-cli.sh':
+            '/opt/Wordpress/02-update-aws-cli.sh':
               content: |
                 #!/bin/bash
                 curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
@@ -281,31 +281,31 @@ Resources:
                 ln -s /usr/local/bin/aws /bin/aws
               mode: 000500
 
-            '/opt/wordpress/03-mount-efs-and-copy-wp-content.sh':
+            '/opt/Wordpress/03-mount-efs-and-copy-wp-content.sh':
               content: !Sub |
               
                 #!/bin/bash
                 
                 echo "TRACE Mount EFS"
                 yum install -y amazon-efs-utils
-                echo "${WordPressMountTargetAZa} ${WordPressEFS}.efs.${AWS::Region}.amazonaws.com" >> /etc/hosts
+                echo "${WordpressMountTargetAZa} ${WordpressEFS}.efs.${AWS::Region}.amazonaws.com" >> /etc/hosts
 
                 echo "TRACE Mount EFS"
                 mkdir /mnt/efs
-                mount -t efs -o tls,iam ${WordPressEFS}.efs.${AWS::Region}.amazonaws.com:/ /mnt/efs
+                mount -t efs -o tls,iam ${WordpressEFS}.efs.${AWS::Region}.amazonaws.com:/ /mnt/efs
 
                 echo "TRACE Install tar and http"
                 yum -y install tar httpd
 
-                echo "TRACE Download WordPress"
-                cd /opt/wordpress
-                curl -O https://wordpress.org/latest.tar.gz
+                echo "TRACE Download Wordpress"
+                cd /opt/Wordpress
+                curl -O https://Wordpress.org/latest.tar.gz
                 tar -xzvf latest.tar.gz
 
                 echo "TRACE Copy wp-content to EFS and create private directory for f.e. .htaccess"
-                cp -p -r /opt/wordpress/wordpress/wp-content/* /mnt/efs
+                cp -p -r /opt/Wordpress/Wordpress/wp-content/* /mnt/efs
                 mkdir /mnt/efs/private
-                cp /opt/wordpress/wordpress_htaccess /mnt/efs/private/.htaccess
+                cp /opt/Wordpress/Wordpress_htaccess /mnt/efs/private/.htaccess
                 ln -s /var/log/httpd/debug.log /mnt/efs/debug.log
 
                 echo "TRACE Set permissions to apache:apache"
@@ -314,10 +314,10 @@ Resources:
 
               mode: 000500
 
-            # Source: https://wordpress.org/support/article/htaccess/
-            '/opt/wordpress/wordpress_htaccess':
+            # Source: https://Wordpress.org/support/article/htaccess/
+            '/opt/Wordpress/Wordpress_htaccess':
               content: !Sub |
-                # BEGIN WordPress
+                # BEGIN Wordpress
 
                 RewriteEngine On
                 RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
@@ -327,23 +327,23 @@ Resources:
                 RewriteCond %{REQUEST_FILENAME} !-d
                 RewriteRule . /index.php [L]
 
-                # END WordPress
+                # END Wordpress
                 
-                # Don't allow other sites to include this site in a frame (source: ZAP and https://stackoverflow.com/questions/30750576/how-to-set-x-frame-options-header-in-wordpress-site/44573750 )
+                # Don't allow other sites to include this site in a frame (source: ZAP and https://stackoverflow.com/questions/30750576/how-to-set-x-frame-options-header-in-Wordpress-site/44573750 )
                 Header set X-Frame-Options SAMEORIGIN
                 Header set X-Content-Type-Options nosniff
 
           commands:
             01-install-cw-agent:
-              command: /opt/wordpress/01-install-and-run-cw-agent.sh
+              command: /opt/Wordpress/01-install-and-run-cw-agent.sh
               ignoreErrors: true
             # In the AMI, the AWS CLI is installed, but this is AWS CL version 1. ECR needs version 2 of the CLI.
             02-update-aws-cli:
-              command: /opt/wordpress/02-update-aws-cli.sh
+              command: /opt/Wordpress/02-update-aws-cli.sh
               ignoreErrors: true
             03-mount-efs-and-copy-wp-content:
-              cwd: /opt/wordpress
-              command: /opt/wordpress/03-mount-efs-and-copy-wp-content.sh
+              cwd: /opt/Wordpress
+              command: /opt/Wordpress/03-mount-efs-and-copy-wp-content.sh
               ignoreErrors: true
     CreationPolicy:
       ResourceSignal:
@@ -371,6 +371,6 @@ Resources:
             shutdown now
 
 Outputs:
-  WordPressEFSId:
-    Value: !Ref WordPressEFS
+  WordpressEFSId:
+    Value: !Ref WordpressEFS
 

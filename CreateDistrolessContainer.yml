@@ -24,6 +24,11 @@ Parameters:
     Description: Tag of this container image
     Type: String
 
+  DatabaseEndpoint:
+    Type: String
+  WordpressEFSId:
+    Type: String
+
   ECRRepository:
     Description: "format 123456789012.dkr.ecr.eu-west-1.amazonaws.com/distroless-container"
     Type: String
@@ -48,6 +53,11 @@ Parameters:
     Type: String
     Default: "/opt/distroless/src/DistrolessContainerCypress"
 
+  FirstInit:
+    Description: Is this the first init? (Set in cloudformation database template)
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: "/wordpress-distroless/firstinit"
+
   EC2InstanceType:
     Description: Instance type for EC2 
     Type: String
@@ -60,7 +70,6 @@ Parameters:
     Description: Amazon Linux AMI
     Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
     Default: /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-ebs
-
 
 Mappings:
   AWSManagedRoles:
@@ -118,6 +127,11 @@ Resources:
               - "logs:CreateLogGroup"
               - "logs:PutLogEvents"
             Resource: "*"
+          - Effect: "Allow"
+            Action: 
+              - "elasticfilesystem:ClientRootAccess"
+            Resource: 
+              - !Sub "arn:aws:elasticfilesystem:${AWS::Region}:${AWS::AccountId}:file-system/${WordpressEFSId}"
       Roles:
         - Ref: DistrolessContainerIAMRole
   DistrolessContainerIAMInstanceProfile:
@@ -159,6 +173,15 @@ Resources:
       Description: Public Internet HTTPS
       FromPort: 443
       ToPort: 443
+      IpProtocol: TCP
+  SecurityGroupEgressPublicInternetNFS:
+    Type: AWS::EC2::SecurityGroupEgress
+    Properties:
+      GroupId: !Ref SecurityGroup
+      CidrIp: 10.0.0.0/16      
+      Description: EFS
+      FromPort: 2049
+      ToPort: 2049
       IpProtocol: TCP
 
   DistrolessContainerBuildInstance:
@@ -272,8 +295,7 @@ Resources:
               content: |
                 #!/bin/bash
 
-                yum install git -y
-                yum install dos2unix httpd -y
+                yum install git dos2unix httpd amazon-efs-utils -y
                 
               mode: 00500        
 
@@ -315,7 +337,7 @@ Resources:
               content: !Sub |
                 #!/bin/bash
 
-                export LOCALHOST=$(ifconfig | grep inet | grep -v inet6 | grep -v 172\.31 | grep -v 127\.0\.0\.1 | awk '{print $2}')
+                export LOCALHOST=$(ifconfig | grep inet | grep 10.0 | awk '{print $2}')
 
                 chmod_file() {
                   LAST_THREE_CHARS=$(echo $FILE | awk '{print substr($0,length($0)-2,3)}')
@@ -333,6 +355,7 @@ Resources:
                   FILE=$1
 
                   sed "s#{LOCALHOST}#$LOCALHOST#g" -i $FILE
+                  sed "s#{DATABASEENDPOINT}#${DatabaseEndpoint}#g" -i $FILE
 
                   chmod_file $FILE
                 }
@@ -388,6 +411,7 @@ Resources:
                 CYPRESS_DIR="$REPO_DIR/e2e"
 
                 BUILD_DOCKERFILE="build-dockerfile"
+                BUILD_DOCKERFILE_INIT="build-dockerfile-init"
                 BUILD_DOCKERFILE_LDD="build-dockerfile-ldd"
                 BUILD_DOCKERFILE_STRACE="build-dockerfile-strace"
                 BUILD_DOCKERFILE_GET_FILES="build-dockerfile-get-files"
@@ -411,6 +435,14 @@ Resources:
                 copy_dockerfiles_and_scripts_to_build_dir() {
                   cp -r "$DOCKER_DIR"/* "$BUILD_DIR"
                   cp -r "$SCRIPT_DIR"/* "$BUILD_DIR"
+                }
+
+                create_build_dockerfile_init() {
+                  DOCKERFILE="./$BUILD_DOCKERFILE_INIT"
+
+                  cat "$BUILD_DIR/dockerfile-head"     > $DOCKERFILE
+
+                  echo 'ENTRYPOINT ["/usr/sbin/httpd", "-D", "FOREGROUND"]' >> $DOCKERFILE
                 }
 
                 create_build_dockerfile_ldd() {
@@ -531,6 +563,12 @@ Resources:
                 cd "$BUILD_DIR"
                 copy_dockerfiles_and_scripts_to_build_dir
 
+                if ("${FirstInit}" == "True")
+                then
+                  create_build_dockerfile_init
+                  build_build_container "$BUILD_DOCKERFILE_INIT" "init"                  
+                fi
+
                 create_build_dockerfile_ldd
                 build_build_container "$BUILD_DOCKERFILE_LDD" "ldd"
                 create_build_dockerfile_strace
@@ -620,10 +658,10 @@ Resources:
               ignoreErrors: true
             06-create-tar:
               command: /opt/distroless/06-create-tar.sh
-              ignoreErrors: false
+              ignoreErrors: true
             07-create-distroless-container:
               command: /opt/distroless/07-create-distroless-container.sh
-              ignoreErrors: false
+              ignoreErrors: true
     CreationPolicy:
       ResourceSignal:
         Timeout: PT1H

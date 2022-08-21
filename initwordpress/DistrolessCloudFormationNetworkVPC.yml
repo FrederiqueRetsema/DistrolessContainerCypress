@@ -2,11 +2,11 @@
 # ============================
 
 AWSTemplateFormatVersion: "2010-09-09"
-Description: CloudFormation template for the WordPress VPC 
+Description: CloudFormation template for the Wordpress VPC 
 
 Resources:
 
-  WordPressVpc:
+  WordpressVpc:
     Type: AWS::EC2::VPC
     Properties: 
       CidrBlock: 10.0.0.0/16
@@ -23,7 +23,7 @@ Resources:
     Type: AWS::EC2::VPCGatewayAttachment
     Properties:
       InternetGatewayId: !Ref InternetGateway
-      VpcId: !Ref WordPressVpc
+      VpcId: !Ref WordpressVpc
 
   SubnetAZa:
     Type: AWS::EC2::Subnet
@@ -31,7 +31,7 @@ Resources:
       AvailabilityZone: !Join ["", [!Ref "AWS::Region", "a"]]
       CidrBlock: 10.0.0.0/24
       MapPublicIpOnLaunch: true
-      VpcId: !Ref WordPressVpc
+      VpcId: !Ref WordpressVpc
       Tags:
         - Key: Name
           Value: SubnetAZa
@@ -46,7 +46,7 @@ Resources:
       AvailabilityZone: !Join ["", [!Ref "AWS::Region", "b"]]
       CidrBlock: 10.0.1.0/24
       MapPublicIpOnLaunch: false
-      VpcId: !Ref WordPressVpc
+      VpcId: !Ref WordpressVpc
       Tags:
         - Key: Name
           Value: SubnetAZb
@@ -63,7 +63,7 @@ Resources:
       Tags:
         - Key: Name
           Value: NACLPublic
-      VpcId: !Ref WordPressVpc
+      VpcId: !Ref WordpressVpc
 
   NACLPublicIngressAll:
     Type: AWS::EC2::NetworkAclEntry
@@ -108,7 +108,7 @@ Resources:
       Tags:
         - Key: Name
           Value: PublicRouteTable
-      VpcId: !Ref WordPressVpc
+      VpcId: !Ref WordpressVpc
   PublicRoutePublicInternet:
     Type: AWS::EC2::Route
     Properties:
@@ -117,8 +117,8 @@ Resources:
       GatewayId: !Ref InternetGateway
 
 Outputs:
-  WordPressVpcId:
-    Value: !Ref WordPressVpc
+  WordpressVpcId:
+    Value: !Ref WordpressVpc
 
   SubnetAZa:
     Value: !Ref SubnetAZa

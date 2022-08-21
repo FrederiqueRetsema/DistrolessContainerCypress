@@ -9,9 +9,11 @@ aws cloudformation create-stack --stack-name CreateDistrolessContainer `
 --template-url https://${BucketName}.s3.amazonaws.com/CreateDistrolessContainer.yml `
 --capabilities CAPABILITY_IAM  `
 --disable-rollback `
---parameter ParameterKey=DownloadCommands,ParameterValue="git clone https://github.com/FrederiqueRetsema/DistrolessContainerCypress; git checkout wordpress" `
-            ParameterKey=VpcId,ParameterValue="vpc-0232ca4bf184e783f" `
-            ParameterKey=SubnetId,ParameterValue="subnet-078e7f380961bbd5a" `
+--parameter ParameterKey=DownloadCommands,ParameterValue="git clone https://github.com/FrederiqueRetsema/DistrolessContainerCypress; cd DistrolessContainerCypress; git checkout wordpress" `
+            ParameterKey=VpcId,ParameterValue="vpc-0bbf7f42fdeb5c1ff" `
+            ParameterKey=SubnetId,ParameterValue="subnet-0465cfd4e69725a6f" `
+            ParameterKey=WordpressEFSId,ParameterValue="fs-075e8e4d2abbf64c3" `
+            ParameterKey=DatabaseEndpoint,ParameterValue="wordpressdistrolessexampledatabase.cluster-cbt809fxlz2t.eu-west-1.rds.amazonaws.com" `
             ParameterKey=ContainerName,ParameterValue="distroless-container" `
             ParameterKey=ContainerTag,ParameterValue="0.0.1" `
             ParameterKey=ECRRepository,ParameterValue="040909972200.dkr.ecr.eu-west-1.amazonaws.com/wordpress-distroless" `

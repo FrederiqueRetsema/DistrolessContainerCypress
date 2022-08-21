@@ -1,17 +1,21 @@
 const { defineConfig } = require("cypress");
-const siteIpAddress = '192.168.2.28'
-const userId = 'TestUser'
-const password = 'C1nder3llaInW0rdpre$$!'
-const databaseName = 'wordpress'
+const siteIpAddress = '192.168.2.102';
+
+const wordpressUserId = 'TestUser';
+const wordpressPassword = 'C1nder3llaInW0rdpre$$!';
+
+const databaseName = 'wordpress';
+const databaseUserId = 'root';
+const databasePassword = 'C1nder3llaInW0rdpre$$!';
 
 async function execute_sql(sqlstatement) {
-	var mysql = require('mysql'); 
+	var mysql = require('mysql2'); 
 
 	var con = mysql.createConnection({
 	  host: siteIpAddress,
-	  user: "root",
-	  password: password,
-	  database: databaseName
+	  database: databaseName,
+	  user: databaseUserId,
+	  password: databasePassword
 	});
   
 	con.connect(function(err) {
@@ -23,14 +27,13 @@ async function execute_sql(sqlstatement) {
 		console.log('Number of records deleted: ' + result.affectedRows);
 	  });
 	});
-
-}
+};
 
 module.exports = defineConfig({
   env: {
-	  siteIpAddress: siteIpAddress,
-    userId: userId,
-    password: password,
+    siteIpAddress: siteIpAddress,
+    wordpressUserId: wordpressUserId,
+    wordpressPassword: wordpressPassword,
     databaseName: databaseName
   },
   e2e: {
@@ -64,4 +67,4 @@ module.exports = defineConfig({
       })
     }
   }
-})
+});

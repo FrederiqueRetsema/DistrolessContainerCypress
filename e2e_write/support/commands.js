@@ -10,18 +10,19 @@
 
 Cypress.Commands.add('login', () => { 
   cy.session("write", () => {
-    cy.visit('/wp-admin')
-	cy.wait(1500)
-    cy.get('input#user_login.input').type(Cypress.env('userId'))
-    cy.get('input#user_pass.input.password-input').type(Cypress.env('password'))
-    cy.contains('Log In').click()
-    cy.url().should('contain', '/wp-admin')
+    cy.visit('/wp-admin');
+    cy.wait(1500);
+    cy.get('input#user_login.input').type(Cypress.env('wordpressUserId'));
+    cy.get('input#user_pass.input.password-input').type(Cypress.env('wordpressPassword'));
+    cy.contains('Log In')
+      .click();
+    cy.url().should('contain', '/wp-admin');
   })
 })
 
 Cypress.Commands.add('logout', () => { 
 	cy.contains('Log Out')
-	  .click({force: true})
+	  .click({force: true});
 	cy.url()
-	  .should('not.include', '/wp-admin')
+	  .should('not.include', '/wp-admin');
 })
