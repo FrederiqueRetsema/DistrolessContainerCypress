@@ -14,11 +14,17 @@ aws cloudformation create-stack --stack-name CreateDistrolessContainer `
             ParameterKey=SubnetId,ParameterValue="subnet-0465cfd4e69725a6f" `
             ParameterKey=WordpressEFSId,ParameterValue="fs-075e8e4d2abbf64c3" `
             ParameterKey=DatabaseEndpoint,ParameterValue="wordpressdistrolessexampledatabase.cluster-cbt809fxlz2t.eu-west-1.rds.amazonaws.com" `
+            ParameterKey=DatabaseName,ParameterValue="wordpress" `
+            ParameterKey=DatabaseUserId,ParameterValue="database_admin" `
+            ParameterKey=DatabasePassword,ParameterValue="C1nder3llaInW0rdpre$$!" `
+            ParameterKey=WordpressUserName,ParameterValue="TestUser" `
+            ParameterKey=WordpressPassword,ParameterValue="C1nder3llaInW0rdpre$$!" `
             ParameterKey=ContainerName,ParameterValue="distroless-container" `
             ParameterKey=ContainerTag,ParameterValue="0.0.1" `
             ParameterKey=ECRRepository,ParameterValue="040909972200.dkr.ecr.eu-west-1.amazonaws.com/wordpress-distroless" `
             ParameterKey=S3BucketWithTestResults,ParameterValue="fra-testresults" `
             ParameterKey=S3BucketKeyPrefix,ParameterValue="distroless-container" `
             ParameterKey=S3BucketWithCloudFormationTemplates,ParameterValue="fra-euwest1" `
+            ParameterKey=CypressImage,ParameterValue="cypress/included:10.6.0" `
             ParameterKey=EC2KeyName,ParameterValue="EC2Key-fra-dev" `
 --profile ${AWSProfile} 

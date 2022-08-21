@@ -5,9 +5,11 @@
 # See for an example the README.md
 
 FROM alpine:latest AS build
-RUN  apk upgrade --no-cache &&\
-     apk add apache2 && \
-     chown apache:apache /var/log/apache2 && \
-     sed -i 's/Listen 80/Listen 8080/' /etc/apache2/httpd.conf && \
-     sed -i 's/#ServerName www.example.com:80/ServerName www.example.com:8080/' /etc/apache2/httpd.conf &&\
-     echo "Hello Distroless" > /var/www/localhost/htdocs/index.html 
+COPY install-apache2-php8-wordpress.sh .
+COPY configure-httpd.sh .
+COPY ./configure-wordpress.sh .
+COPY ./start-container-config.sh .
+RUN ./install-apache2-php8-wordpress.sh && \
+    ./configure-httpd.sh && \
+    ./configure-wordpress.sh && \
+    rm ./*.sh 

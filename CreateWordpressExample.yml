@@ -21,6 +21,19 @@ Parameters:
     Type: String
     Default: "/opt/distroless/src/DistrolessContainerCypress"
 
+  DatabaseName:
+    Type: String
+  DatabasePrefix:
+    Type: String
+  DatabaseUserId:
+    Type: String
+  DatabasePassword:
+    Type: String
+  WordpressUserId:
+    Type: String
+  WordpressPassword:
+    Type: String
+
   EC2InstanceType:
     Description: Instance type for EC2 
     Type: String
@@ -66,6 +79,9 @@ Resources:
         WordpressVpcId: !GetAtt  WordpressNetwork.Outputs.WordpressVpcId
         SubnetAZaId: !GetAtt WordpressNetwork.Outputs.SubnetAZa
         SubnetAZbId: !GetAtt WordpressNetwork.Outputs.SubnetAZb
+        DatabaseName: !Ref DatabaseName
+        DatabaseUserId: !Ref DatabaseUserId
+        DatabasePassword: !Ref DatabasePassword
 
   WordpressEFS:
     Type: AWS::CloudFormation::Stack
@@ -95,6 +111,12 @@ Resources:
         ContainerName: 'wordpress-distroless'
         ContainerTag: '0.1'
         DatabaseEndpoint: !GetAtt WordpressDatabase.Outputs.WordpressDBServerEndpoint
+        DatabaseName: !Ref DatabaseName
+        DatabasePrefix: !Ref DatabasePrefix
+        DatabaseUserId: !Ref DatabaseUserId
+        DatabasePassword: !Ref DatabasePassword
+        WordpressUserId: !Ref WordpressUserId
+        WordpressPassword: !Ref WordpressPassword
         WordpressEFSId: !GetAtt WordpressEFS.Outputs.WordpressEFSId
         ECRRepository: !GetAtt WordpressECR.Outputs.RepositoryUri
         S3BucketWithTestResults: !Ref S3BucketWithTestResults

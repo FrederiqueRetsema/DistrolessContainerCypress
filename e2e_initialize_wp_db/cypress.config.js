@@ -1,15 +1,15 @@
 const { defineConfig } = require("cypress");
-const siteIpAddress = '192.168.2.102'
+const siteIpAddress = {DATABASEENDPOINT}
 
 module.exports = defineConfig({
   env: {
   siteIpAddress: siteIpAddress,
-  wordpressUserId: 'TestUser',
-  wordpressPassword: 'C1nder3llaInW0rdpre$$!',
+  wordpressUserId: '{WORDPRESSUSERID}',
+  wordpressPassword: '{WORDPRESSPASSWORD}',
 
-  databaseName: 'wordpress',
-  databaseUserId: 'root',
-  databasePassword: 'C1nder3llaInW0rdpre$$!'
+  databaseName: '{DATABASENAME}',
+  databaseUserId: '{DATABASEUSERID}',
+  databasePassword: '{DATABASEPASSWORD}'
 },
   e2e: {
     baseUrl: 'http://'+siteIpAddress,

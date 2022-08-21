@@ -44,19 +44,13 @@ Parameters:
     Description: Database cluster identifier
     Type: String
     Default: WordpressDistrolessExampleDatabase
-  DatabaseName: 
-    Description: DatabaseName
+  DatabaseName:
     Type: String
-    Default: Wordpress
-  TablePrefix:
-    Description: Table prefix
+  DatabaseUserId:
     Type: String
-    Default: wp_
+  DatabasePassword:
+    Type: String
 
-  AdminUserName: 
-    Description: User name for the Admin user
-    Type: String
-    Default: database_admin
   AdminPassword: 
     Description: Password for the Admin user
     Type: String
@@ -120,8 +114,8 @@ Resources:
       EnableHttpEndpoint: !Ref EnableHttpEndpoint
       Engine: aurora-mysql
       EngineMode: serverless
-      MasterUsername: !Ref AdminUserName
-      MasterUserPassword: !Ref AdminPassword
+      MasterUsername: !Ref DatabaseUserId
+      MasterUserPassword: !Ref DatabasePassword
       ScalingConfiguration:
         AutoPause: !Ref AutoPauseEnabled
         MinCapacity: 1

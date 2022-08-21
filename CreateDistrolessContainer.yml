@@ -26,6 +26,18 @@ Parameters:
 
   DatabaseEndpoint:
     Type: String
+  DatabaseName:
+    Type: String
+  DatabasePrefix:
+    Type: String
+  DatabaseUserId:
+    Type: String
+  DatabasePassword:
+    Type: String
+  WordpressUserId:
+    Type: String
+  WordpressPassword:
+    Type: String
   WordpressEFSId:
     Type: String
 
@@ -45,7 +57,7 @@ Parameters:
     
   CypressImage:
     Type: String
-    Default: "cypress/included:10.3.0"
+    Default: "cypress/included:10.6.0"
   BaseDir:
     Type: String
     Default: "/opt/distroless/src"
@@ -355,7 +367,15 @@ Resources:
                   FILE=$1
 
                   sed "s#{LOCALHOST}#$LOCALHOST#g" -i $FILE
+
                   sed "s#{DATABASEENDPOINT}#${DatabaseEndpoint}#g" -i $FILE
+                  sed "s#{DATABASENAME}#${DatabaseName}#g" -i $FILE
+                  sed "s#{DATABASEPREFIX}#${DatabasePrefix}#g" -i $FILE
+                  sed "s#{DATABASEUSERID}#${DatabaseUserId}#g" -i $FILE
+                  sed "s#{DATABASEPASSWORD}#${DatabasePassword}#g" -i $FILE
+
+                  sed "s#{WORDPRESSUSERID}#${WordpressUserId}#g" -i $FILE
+                  sed "s#{WORDPRESSPASSWORD}#${WordpressPassword}#g" -i $FILE
 
                   chmod_file $FILE
                 }

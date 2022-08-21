@@ -26,6 +26,18 @@ Parameters:
 
   DatabaseEndpoint:
     Type: String
+  DatabaseName:
+    Type: String
+  DatabasePrefix:
+    Type: String
+  DatabaseUserId:
+    Type: String
+  DatabasePassword:
+    Type: String
+  WordpressUserId:
+    Type: String
+  WordpressPassword:
+    Type: String
   WordpressEFSId:
     Type: String
 
@@ -183,6 +195,30 @@ Resources:
                   {
                     "ParameterKey": "DatabaseEndpoint",
                     "ParameterValue": "${DatabaseEndpoint}"
+                  },
+                  {
+                    "ParameterKey": "DatabaseName",
+                    "ParameterValue": "${DatabaseName}"
+                  },
+                  {
+                    "ParameterKey": "DatabasePrefix",
+                    "ParameterValue": "${DatabasePrefix}"
+                  },
+                  {
+                    "ParameterKey": "DatabaseUserId",
+                    "ParameterValue": "${DatabaseUserId}"
+                  },
+                  {
+                    "ParameterKey": "DatabasePassword",
+                    "ParameterValue": "${DatabasePassword}"
+                  },
+                  {
+                    "ParameterKey": "WordpressUserId",
+                    "ParameterValue": "${WordpressUserId}"
+                  },
+                  {
+                    "ParameterKey": "WordpressPassword",
+                    "ParameterValue": "${WordpressPassword}"
                   },
                   {
                     "ParameterKey": "ECRRepository",
